@@ -44,21 +44,26 @@ void OBS_N2S_Publish();   // Prototype this function to aviod compile function u
  * OBS_Send() - Do a GET request to log observation, process returned text for result code and set return status
  * ======================================================================================================================
  */
-bool OBS_Send(char *obs)
+int OBS_Send(char *obs)
 {
   // Handle LoRaWAN
   if (LW_valid) {
-    return(LW_Send(obs));
+    if (LW_Send(obs)) {
+      return(1);
+    }
+    else {
+      return(0);
+    }
   }
 
-  // Handle WiFi
+  // Handle WiFi can retutn 0=not sent, -500=ErrorCode Not Sent, 1=Sent
   else if (WiFi_valid) {
     return (WiFi_Send(obs));
   }
   
   else {
     Output("No Valid Network");
-    return (false);   
+    return (0);   
   }
   
 }
@@ -140,7 +145,9 @@ void OBS_N2S_Add() {
  * {"at":"2022-02-13T17:26:07","css":18,"hth":0,"bcs":2,"bpc":63.2695,.....,"mt2":20.5625}
  * ======================================================================================================================
  */
-void OBS_LOG_Add() {  
+void OBS_LOG_Add() {
+  Output("OBS_ADD()");
+    
   if (obs.inuse) {     // Sanity check
 
     memset(obsbuf, 0, sizeof(obsbuf));
@@ -270,6 +277,8 @@ void OBS_Take() {
   float mcp1_temp = 0.0;
   float sht1_humid = 0.0;
   float heat_index = 0.0;
+
+  Output("OBS_TAKE()");
   
   // Safty Check for Vaild Time
   if (!RTC_valid) {
@@ -287,6 +296,8 @@ void OBS_Take() {
   obs.hth = SystemStatusBits;
 
   obs.bv = vbat_get();
+
+  Output("TAKE1");
 
   // Rain Gauge 1 - Each tip is 0.2mm of rain
   if (cf_rg1_enable) {
@@ -350,6 +361,8 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
+  Output("TAKE2");
+
   if (cf_ds_enable) {
     strcpy (obs.sensor[sidx].id, "ds");
     obs.sensor[sidx].type = F_OBS;
@@ -393,6 +406,8 @@ void OBS_Take() {
     Wind_ClearSampleCount(); // Clear Counter, Counter maintain how many samples since last obs sent
   }
 
+  Output("TAKE3");
+  
   //
   // Add I2C Sensors
   //
@@ -443,6 +458,8 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
+  Output("TAKE4");
+  
   if (BMX_2_exists) {
     float p = 0.0;
     float t = 0.0;
@@ -490,6 +507,8 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
+  Output("TAKE5");
+  
   if (HTU21DF_exists) {
     float t = 0.0;
     float h = 0.0;
@@ -511,6 +530,8 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
+  Output("TAKE6");
+  
   if (SHT_1_exists) {                                                                               
     float t = 0.0;
     float h = 0.0;
@@ -555,6 +576,8 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
+  Output("TAKE7");
+  
   if (HIH8_exists) {
     float t = 0.0;
     float h = 0.0;
@@ -579,6 +602,8 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
+  Output("TAKE8");
+  
   if (SI1145_exists) {
     float si_vis = uv.readVisible();
     float si_ir = uv.readIR();
@@ -632,7 +657,9 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = si_uv;
     obs.sensor[sidx++].inuse = true;
   }
-  
+
+  Output("TAKE9");
+    
   if (MCP_1_exists) {
     float t = 0.0;
    
@@ -658,6 +685,8 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = t;
     obs.sensor[sidx++].inuse = true;
   }
+
+  Output("TAKE10");
   
   if (VEML7700_exists) {
     float lux = veml.readLux(VEML_LUX_AUTO);
@@ -670,6 +699,8 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
+  Output("TAKE11");
+  
   if (PM25AQI_exists) {
     // Standard Particle PM1.0 concentration unit µg m3
     strcpy (obs.sensor[sidx].id, "pm1s10");
@@ -711,6 +742,8 @@ void OBS_Take() {
     pm25aqi_clear();
   }
 
+  Output("TAKE12");
+  
   // Heat Index Temperature
   if (HI_exists) {
     heat_index = hi_calculate(mcp1_temp, sht1_humid);
@@ -735,6 +768,7 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = (float) wbgt_calculate(heat_index);
     obs.sensor[sidx++].inuse = true;    
   }
+  Output("OBS_TAKE(DONE)");
 }
 
 /*
@@ -748,13 +782,11 @@ void OBS_Do() {
   I2C_Check_Sensors(); // Make sure Sensors are online
 
   // Take an observation
-  Output("OBS_TAKE()");
   OBS_Take();
 
   // At this point, the obs data structure has been filled in with observation data
   
   // Save Observation Data to Log file.
-  Output("OBS_ADD()");
   OBS_LOG_Add(); 
 
   // Build Observation to Send
@@ -762,7 +794,7 @@ void OBS_Do() {
   OBS_Build();
 
   Output("OBS_SEND()");
-  if (!OBS_Send(obsbuf)) {  
+  if (OBS_Send(obsbuf) != 1) {  
     Output("FS->PUB FAILED");
     OBS_N2S_Save(); // Saves Main observations
   }
@@ -836,7 +868,8 @@ void OBS_N2S_Publish() {
           ch = fp.read();
 
           if (ch == 0x0A) {  // newline
-            if (OBS_Send(obsbuf)) { 
+            int send_result = OBS_Send(obsbuf);
+            if (send_result == 1) { 
               sprintf (Buffer32Bytes, "OBS:N2S[%d]->PUB:OK", sent++);
               Output (Buffer32Bytes);
               Serial_writeln (obsbuf);
@@ -855,6 +888,28 @@ void OBS_N2S_Publish() {
                 Output ("OBS:N2S->TIME2EXIT");
                 break;                
               }
+            }
+            
+            if (send_result == -500) { // HTTP/1.1 500 Internal Server Error
+              // Suspect we have a bad N2S observation that webserver does not like, move past it.
+              sprintf (Buffer32Bytes, "OBS:N2S[%d]->ERR:500", sent++);
+              Output (Buffer32Bytes);
+              Serial_writeln (obsbuf);
+
+              // setup for next line in file
+              i = 0;
+
+              // file position is at the start of the next observation or at eof
+              eeprom.n2sfp = fp.position();
+              
+              sprintf (Buffer32Bytes, "OBS:N2S[%d] Contunue", sent);
+              Output (Buffer32Bytes); 
+
+              if(millis() > TimeFromNow) {
+                // need to break out so new obs can be made
+                Output ("OBS:N2S->TIME2EXIT");
+                break;                
+              }             
             }
             else {
                 sprintf (Buffer32Bytes, "OBS:N2S[%d]->PUB:ERR", sent);

@@ -109,14 +109,17 @@ void WiFi_UpdateTime() {
     unsigned long networktime = Wifi_GetTime();
 
     DateTime dt_networktime = DateTime(networktime);
-    rtc.adjust(dt_networktime);
-    Output("WiFi RTC SET");
-    
-    rtc_timestamp();
-    sprintf (msgbuf, "%sW", timestamp);
-    Output (msgbuf);
-    
-    RTC_valid = true;
+    if ((dt_networktime.year() >= TM_VALID_YEAR_START) && (dt_networktime.year() <= TM_VALID_YEAR_END)) {
+      rtc.adjust(dt_networktime);
+      Output("WiFi RTC SET");
+      rtc_timestamp();
+      sprintf (msgbuf, "%sW", timestamp);
+      Output (msgbuf);
+      RTC_valid = true;
+    }
+    else {
+      Output("WiFi RTC ERROR");
+    }
   }
 }
 
@@ -211,11 +214,11 @@ void WiFi_connect_wait(int wait_seconds) {
  * WiFi_Send_http()
  * ======================================================================================================================
  */
-bool WiFi_Send_http(char *obs) {
+ int WiFi_Send_http(char *obs) {
   char response[64];
   char buf[96];
   int r, exit_timer=0;
-  bool posted = false;
+  int posted = 0;
 
   if (WiFi.status() != WL_CONNECTED) {
     WiFi_connect_wait(30);
@@ -253,13 +256,17 @@ bool WiFi_Send_http(char *obs) {
         
       // Read first line of HTTP Response, then get out of the loop
       r=0;
-      while ((wifi.connected() || wifi.available() ) && r<63 && !posted) {
+      while ((wifi.connected() || wifi.available() ) && r<63 && (posted == 0)) {
         response[r] = wifi.read();
         response[++r] = 0;  // Make string null terminated
         if (strstr(response, "200 OK") != NULL) { // Does response includes a "200 OK" substring?
-          posted = true;
+          posted = 1;
           break;
         }
+        if (strstr(response, "500 Internal") != NULL) { // Does response includes a This Error substring?
+          posted = -500;
+          break;
+        }        
         if ((response[r-1] == 0x0A) || (response[r-1] == 0x0D)) { // LF or CR
           // if we got here then we never saw the 200 OK
           break;
@@ -278,7 +285,7 @@ bool WiFi_Send_http(char *obs) {
       // Server disconnected from clinet. No data left to read. Disconnect client from the server
       wifi.stop();
 
-      sprintf (buf, "OBS:%sPosted", (posted) ? "" : "Not ");
+      sprintf (buf, "OBS:%sPosted=%d", (posted == 1) ? "" : "Not ", posted);
       Output(buf);
     }
   }
@@ -290,11 +297,11 @@ bool WiFi_Send_http(char *obs) {
  * WiFi_Send_https()
  * ======================================================================================================================
  */
-bool WiFi_Send_https(char *obs) {
+int WiFi_Send_https(char *obs) {
   char response[64];
   char buf[96];
   int r, exit_timer=0;
-  bool posted = false;
+  int posted = false;
 
   if (WiFi.status() != WL_CONNECTED) {
     WiFi_connect_wait(30);
@@ -332,13 +339,17 @@ bool WiFi_Send_https(char *obs) {
         
       // Read first line of HTTP Response, then get out of the loop
       r=0;
-      while ((wifi_ssl.connected() || wifi_ssl.available() ) && r<63 && !posted) {
+      while ((wifi_ssl.connected() || wifi_ssl.available() ) && r<63 && (posted==0)) {
         response[r] = wifi_ssl.read();
         response[++r] = 0;  // Make string null terminated
         if (strstr(response, "200 OK") != NULL) { // Does response includes a "200 OK" substring?
-          posted = true;
+          posted = 1;
           break;
         }
+        if (strstr(response, "500 Internal") != NULL) { // Does response includes a This Error substring?
+          posted = -500;
+          break;
+        }        
         if ((response[r-1] == 0x0A) || (response[r-1] == 0x0D)) { // LF or CR
           // if we got here then we never saw the 200 OK
           break;
@@ -357,7 +368,7 @@ bool WiFi_Send_https(char *obs) {
       // Server disconnected from clinet. No data left to read. Disconnect client from the server
       wifi_ssl.stop();
 
-      sprintf (buf, "OBS:%sPosted", (posted) ? "" : "Not ");
+      sprintf (buf, "OBS:%sPosted", (posted == 1) ? "" : "Not ");
       Output(buf);
     }
   }
@@ -369,7 +380,7 @@ bool WiFi_Send_https(char *obs) {
  * WiFi_Send()
  * ======================================================================================================================
  */
-bool WiFi_Send(char *obs) {
+int WiFi_Send(char *obs) {
   if (cf_webserver_port == 80) {
     return (WiFi_Send_http(obs));
   }

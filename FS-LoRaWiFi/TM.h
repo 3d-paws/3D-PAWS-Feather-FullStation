@@ -77,7 +77,7 @@ void rtc_initialize() {
   // Do a validation check on the year. 
   // Asumption is: If RTC not set, it will not have the current year.
   
-  if ((now.year() >= 2024) && (now.year() <= 2033)) {
+  if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
     RTC_valid = true;
     Output("RTC:VALID");
   }
@@ -110,7 +110,7 @@ bool rtc_readserial()
       // Validate User input for a good date and time
       p = &buffer[0];
       token = strtok_r(p, ":", &p);
-      if (isnumeric(token) && (year = atoi (token)) && (year >= 2024) && (year <= 2033) ) {   // FOO set back 2021
+      if (isnumeric(token) && (year = atoi (token)) && (year >= TM_VALID_YEAR_START) && (year <= TM_VALID_YEAR_END) ) {   // FOO set back 2021
         token = strtok_r(p, ":", &p);
         if (isnumeric(token) && (month = atoi (token)) && (month >= 1) && (month <= 12) ) {
           token = strtok_r(p, ":", &p);        

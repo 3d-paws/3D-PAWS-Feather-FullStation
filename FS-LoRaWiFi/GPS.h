@@ -40,7 +40,7 @@ data to be transmitted by any of the located and tracked satellites.
  *  Globals
  * ======================================================================================================================
  */
-bool OBS_Send(char *); // Prototype this function to aviod compile function unknown issue
+int OBS_Send(char *); // Prototype this function to aviod compile function unknown issue
 
 #define GPS_ADDRESS 0x10
 I2CGPS myI2CGPS; //Hook object to the library
@@ -120,7 +120,7 @@ void gps_initialize(bool verbose) {
     uint64_t period;
     uint16_t default_year = gps.date.year();   // This will be 2000 if it has not updated
 
-    if ((default_year<2024) || (default_year>2032) ) {
+    if ((default_year<TM_VALID_YEAR_START) || (default_year>TM_VALID_YEAR_END) ) {
       if (verbose) Output("GPS:TM NOT VALID"); 
       
       wait = millis() + 30000;
@@ -134,7 +134,7 @@ void gps_initialize(bool verbose) {
           gps.encode(myI2CGPS.read()); //Feed the GPS parser
 
           // Look for a change in the year, once changed we have date, time and location
-          if ((gps.date.year() >= 2024) && (gps.date.year() <= 2032) && gps.satellites.value()) {
+          if ((gps.date.year() >= TM_VALID_YEAR_START) && (gps.date.year() <= TM_VALID_YEAR_END) && gps.satellites.value()) {
             gps_valid = true;
             break;
           }
@@ -159,7 +159,7 @@ void gps_initialize(bool verbose) {
       ));
       Output("GPS->RTC Set");
       now = rtc.now();
-      if ((now.year() >= 2024) && (now.year() <= 2033)) {
+      if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
         RTC_valid = true;
         Output("RTC:VALID");
       }
@@ -217,7 +217,7 @@ void gps_publish() {
   
   Serial_writeln (obsbuf);
 
-  if (!OBS_Send(obsbuf)) {  
+  if (OBS_Send(obsbuf) != 1) {  
     Output("GPS->PUB FAILED");
   }
   else {

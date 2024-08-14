@@ -27,7 +27,11 @@
  *           2024-07-18 RJB Pin changes A2 Wind, A3 RG1, A4 RG2, A5, Distance
  *           2024-08-09 RJB Merged changed into LoRaWAN code base to support WiFi boards
  *                          Renamed to FullStaion LoRaWan WiFi or FSLW
- *
+ *           2024-08-14 RJB Quality check added to WiFi NTP time 
+ *                          Changed OBS_Send to look for http error code 500. For N2S being sent a 500 response
+ *                          means I move past that in the N2S file
+ *                          If year is not valid we will not send a observation.
+ *                          Added define statements for valid start and end years
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
  *    cp lmic_project_config.h-eu lmic_project_config.h
@@ -146,6 +150,9 @@
 #define HEARTBEAT_PIN     A1  // Connect to WatchDog Heartbeat
 #define SCE_PIN           12  // Serial Console Enable Pin
 #define LED_PIN           LED_BUILTIN
+
+#define TM_VALID_YEAR_START     2024
+#define TM_VALID_YEAR_END       2033
 
 /*
  * ======================================================================================================================
@@ -549,8 +556,15 @@ void loop() {
     // Perform an Observation, Write to SD, Send OBS
     if (millis() >= Time_of_next_obs) {
       Output ("Do OBS");
-      Time_of_obs = rtc_unixtime();
-      OBS_Do();
+      
+      now = rtc.now();
+      Time_of_obs = now.unixtime();
+      if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
+        OBS_Do();
+      }
+      else {
+        Output ("OBS_Do() NotRun-Bad TM");
+      }
 
       if (cf_5m_enable) {    
         // Log 0,5,10,15... minute periods of each hour
