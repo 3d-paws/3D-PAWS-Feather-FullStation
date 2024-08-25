@@ -539,8 +539,9 @@ bool hih8_getTempHumid(float *t, float *h) {
     delayMicroseconds(200); // give some time for sensor to process request
 
 
-    // We skip ending the transmission after Wire.write() because the sensor might treat the read and write operations as a 
-    // continuous transaction. 
+    // We skip ending the transmission after Wire.write() because the sensor seems to treat the read and write operations
+    // as a continuous transaction. 
+    
     // byte error = Wire.endTransmission();
     //  0:success
     //  1:data too long to fit in transmit buffer
