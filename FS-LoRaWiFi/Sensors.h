@@ -520,56 +520,6 @@ void hih8_initialize() {
   }
   Output (msgp);
 }
-#ifdef NOWAY
-
-/* 
- *=======================================================================================================================
- * hih8_getTempHumid() - Get Temp and Humidity
- *   Call example:  status = hih8_getTempHumid(&t, &h);
- *=======================================================================================================================
- */
-bool hih8_getTempHumid(float *t, float *h) {
-  if (HIH8_exists) {
-    uint16_t humidityBuffer    = 0;
-    uint16_t temperatureBuffer = 0;
-  
-    Wire.begin();
-    Wire.beginTransmission(HIH8000_ADDRESS);
-
-    Wire.write(0x00); // set the register location for read request
-
-    delayMicroseconds(200); // give some time for sensor to process request
-
-    if (Wire.requestFrom(HIH8000_ADDRESS, 4) == 4) {
-
-      // Get raw humidity data
-      humidityBuffer = Wire.read();
-      humidityBuffer <<= 8;
-      humidityBuffer |= Wire.read();
-      humidityBuffer &= 0x3FFF;   // 14bit value, get rid of the upper 2 status bits
-
-      // Get raw temperature data
-      temperatureBuffer = Wire.read();
-      temperatureBuffer <<= 8;
-      temperatureBuffer |= Wire.read();
-      temperatureBuffer >>= 2;  // Remove the last two "Do Not Care" bits (shift left is same as divide by 4)
-
-      Wire.endTransmission();
-
-      *h = humidityBuffer * 6.10e-3;
-      *t = temperatureBuffer * 1.007e-2 - 40.0;
-      return (true);
-    }
-    else {
-      Wire.endTransmission();
-      return(false);
-    }
-  }
-  else {
-    return (false);
-  }
-}
-#endif
 
 /* 
  *=======================================================================================================================
@@ -588,18 +538,20 @@ bool hih8_getTempHumid(float *t, float *h) {
 
     delayMicroseconds(200); // give some time for sensor to process request
 
-#ifdef NOWAY
-    byte error = Wire.endTransmission();
+
+    // We skip ending the transmission after Wire.write() because the sensor might treat the read and write operations as a 
+    // continuous transaction. 
+    // byte error = Wire.endTransmission();
     //  0:success
     //  1:data too long to fit in transmit buffer
     //  2:received NACK on transmit of address
     //  3:received NACK on transmit of data
     //  4:other error 
-    if (error != 0) {
-        Output("HIH8 Err:I2C Failed");
-        return false;
-    }
-#endif    
+    // if (error != 0) {
+    //     Output("HIH8 Err:I2C Failed");
+    //     return false;
+    //}
+
     if (Wire.requestFrom(HIH8000_ADDRESS, 4) == 4) {
 
       // Get raw humidity data
@@ -614,6 +566,8 @@ bool hih8_getTempHumid(float *t, float *h) {
       temperatureBuffer |= Wire.read();
       temperatureBuffer >>= 2;  // Remove the last two "Do Not Care" bits (shift left is same as divide by 4)
 
+      // Wire.endTransmission();
+      
       *h = humidityBuffer * 6.10e-3;
       *t = temperatureBuffer * 1.007e-2 - 40.0;
       return (true);
