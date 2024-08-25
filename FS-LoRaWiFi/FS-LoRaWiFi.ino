@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2024] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-240807"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-240825"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
@@ -32,6 +32,9 @@
  *                          means I move past that in the N2S file
  *                          If year is not valid we will not send a observation.
  *                          Added define statements for valid start and end years
+ *           2024-08-25 RJB hih8_getTempHumid() modified for reordering Wire.endTransmission() call.
+ *                          pm25aqi_initialize() now calls I2C_Device_Exist(PM25AQI_ADDRESS) instead of doing wire call directly.
+ *                          
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
  *    cp lmic_project_config.h-eu lmic_project_config.h

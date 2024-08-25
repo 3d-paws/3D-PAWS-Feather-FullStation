@@ -520,6 +520,7 @@ void hih8_initialize() {
   }
   Output (msgp);
 }
+#ifdef NOWAY
 
 /* 
  *=======================================================================================================================
@@ -561,6 +562,64 @@ bool hih8_getTempHumid(float *t, float *h) {
     }
     else {
       Wire.endTransmission();
+      return(false);
+    }
+  }
+  else {
+    return (false);
+  }
+}
+#endif
+
+/* 
+ *=======================================================================================================================
+ * hih8_getTempHumid() - Get Temp and Humidity
+ *   Call example:  status = hih8_getTempHumid(&t, &h);
+ *=======================================================================================================================
+ */
+bool hih8_getTempHumid(float *t, float *h) {
+  if (HIH8_exists) {
+    uint16_t humidityBuffer    = 0;
+    uint16_t temperatureBuffer = 0;
+
+    Wire.begin();
+    Wire.beginTransmission(HIH8000_ADDRESS);
+    Wire.write(0x00); // set the register location for read request
+
+    delayMicroseconds(200); // give some time for sensor to process request
+
+#ifdef NOWAY
+    byte error = Wire.endTransmission();
+    //  0:success
+    //  1:data too long to fit in transmit buffer
+    //  2:received NACK on transmit of address
+    //  3:received NACK on transmit of data
+    //  4:other error 
+    if (error != 0) {
+        Output("HIH8 Err:I2C Failed");
+        return false;
+    }
+#endif    
+    if (Wire.requestFrom(HIH8000_ADDRESS, 4) == 4) {
+
+      // Get raw humidity data
+      humidityBuffer = Wire.read();
+      humidityBuffer <<= 8;
+      humidityBuffer |= Wire.read();
+      humidityBuffer &= 0x3FFF;   // 14bit value, get rid of the upper 2 status bits
+
+      // Get raw temperature data
+      temperatureBuffer = Wire.read();
+      temperatureBuffer <<= 8;
+      temperatureBuffer |= Wire.read();
+      temperatureBuffer >>= 2;  // Remove the last two "Do Not Care" bits (shift left is same as divide by 4)
+
+      *h = humidityBuffer * 6.10e-3;
+      *t = temperatureBuffer * 1.007e-2 - 40.0;
+      return (true);
+    }
+    else {
+      Output("HIH8 Err:No Data Recv");
       return(false);
     }
   }
@@ -850,6 +909,7 @@ void pm25aqi_clear() {
   pm25aqi_obs.max_e100 = 0;
 }
 
+#ifdef NOWAY
 /* 
  *=======================================================================================================================
  * pm25aqi_initialize() - air quality sensor
@@ -876,6 +936,34 @@ void pm25aqi_initialize() {
   }
   Output (msgp);
 }
+#endif
+
+/* 
+ *=======================================================================================================================
+ * pm25aqi_initialize() - air quality sensor
+ *=======================================================================================================================
+ */
+void pm25aqi_initialize() {
+  Output("PM25AQI:INIT");
+  if (I2C_Device_Exist(PM25AQI_ADDRESS)) {
+    if (! pmaq.begin_I2C()) {      // connect to the sensor over I2C
+      msgp = (char *) "PM:Begin NF";
+      PM25AQI_exists = false;
+    }
+    else {
+      msgp = (char *) "PM:OK";
+      PM25AQI_exists = true;
+      pm25aqi_clear();
+    }
+  }
+  else {
+    msgp = (char *) "PM:NF";
+    PM25AQI_exists = false;
+    SystemStatusBits |= SSB_PM25AQI;  // Turn On Bit
+  }
+  Output (msgp);
+}
+
 
 /* 
  *=======================================================================================================================

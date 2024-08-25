@@ -301,21 +301,21 @@ int WiFi_Send_https(char *obs) {
   char response[64];
   char buf[96];
   int r, exit_timer=0;
-  int posted = false;
+  int posted = 0;
 
   if (WiFi.status() != WL_CONNECTED) {
     WiFi_connect_wait(30);
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    Output("OBS:SEND->HTTP");
+    Output("OBS:SEND->HTTPS");
     if (!wifi_ssl.connect(cf_webserver, cf_webserver_port)) {
-      Output("OBS:HTTP FAILED");
+      Output("OBS:HTTPS FAILED");
     }
     else {        
-      Output("OBS:HTTP CONNECTED");
+      Output("OBS:HTTPS CONNECTED");
       
-      // Make a HTTP request:
+      // Make a HTTPS request:
       wifi_ssl.print("GET ");
       wifi_ssl.print(obs); // path
       wifi_ssl.println(" HTTP/1.1");
@@ -324,7 +324,7 @@ int WiFi_Send_https(char *obs) {
       wifi_ssl.println("Connection: close");
       wifi_ssl.println();
 
-      Output("OBS:HTTP SENT");
+      Output("OBS:HTTPS SENT");
 
       // Check every 1s for data. While waiting take Wind Readings every 1s.
       exit_timer = 0;     
@@ -335,11 +335,11 @@ int WiFi_Send_https(char *obs) {
         }
       }
       
-      Output("OBS:HTTP WAIT");
+      Output("OBS:HTTPS WAIT");
         
       // Read first line of HTTP Response, then get out of the loop
       r=0;
-      while ((wifi_ssl.connected() || wifi_ssl.available() ) && r<63 && (posted==0)) {
+      while ((wifi_ssl.connected() || wifi_ssl.available() ) && r<63 && (posted == 0)) {
         response[r] = wifi_ssl.read();
         response[++r] = 0;  // Make string null terminated
         if (strstr(response, "200 OK") != NULL) { // Does response includes a "200 OK" substring?

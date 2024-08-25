@@ -84,12 +84,6 @@
  * ======================================================================================================================
  */
 
-    // connect to WEP-encrypted Wifi network
-    // 40-bit WEP, you need a key that is 10 characters long, and the characters must be hexadecimal (0-9 or A-F).
-    // char key[] = "D0D0DEADF00DABBADEAFBEADED";       // your network key
-    // For 128-bit, you need a string that is 26 characters long. D0D0DEADF00DABBADEAFBEADED will work because it's 26 characters,
-    //  status = WiFi.begin(ssid, wepKey); // connects to a WEP-secured network using the default key index (typically 0).
-    
 /*
  * ======================================================================================================================
  *  Define Global Configuration File Variables

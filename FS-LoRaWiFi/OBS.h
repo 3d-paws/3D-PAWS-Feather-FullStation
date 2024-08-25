@@ -781,13 +781,12 @@ void OBS_Do() {
   
   I2C_Check_Sensors(); // Make sure Sensors are online
 
-  // Take an observation
-  OBS_Take();
+  Output("OBS_TAKE()");
+  OBS_Take();          // Take an observation
 
   // At this point, the obs data structure has been filled in with observation data
-  
-  // Save Observation Data to Log file.
-  OBS_LOG_Add(); 
+  Output("OBS_ADD()");
+  OBS_LOG_Add();        // Save Observation Data to Log file.
 
   // Build Observation to Send
   Output("OBS_BUILD()");
@@ -879,7 +878,8 @@ void OBS_N2S_Publish() {
 
               // file position is at the start of the next observation or at eof
               eeprom.n2sfp = fp.position();
-              
+
+              BackGroundWork();
               sprintf (Buffer32Bytes, "OBS:N2S[%d] Contunue", sent);
               Output (Buffer32Bytes); 
 
