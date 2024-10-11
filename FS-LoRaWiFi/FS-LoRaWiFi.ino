@@ -34,6 +34,9 @@
  *                          Added define statements for valid start and end years
  *           2024-08-25 RJB hih8_getTempHumid() modified removing Wire.endTransmission() call.
  *                          pm25aqi_initialize() now calls I2C_Device_Exist(PM25AQI_ADDRESS) instead of doing wire call directly.
+ *           2024-08-26 RJB Moved the WiFi connection check / reconnect to WiFi_Send()
+ *           2024-08-27 RJB Changed Distance sensor to multiply raw value by 5 for 5m, 10 for 10m, OBS will be in mm
+ *           2024-10-07 RJB Improved hi_calculate() function.
  *                          
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config

@@ -435,13 +435,25 @@ void as5600_initialize() {
 
 /*
  * =======================================================================================================================
- *  Distance Gauge -
+ *  Distance Gauge
  * =======================================================================================================================
  */
+
+/*
+ * Distance Sensors
+ * The 5-meter sensors (MB7360, MB7369, MB7380, and MB7389) use a scale factor of (Vcc/5120) per 1-mm.
+ * Particle 12bit resolution (0-4095),  Sensor has a resolution of 0 - 5119mm,  Each unit of the 0-4095 resolution is 1.25mm
+ * Feather has 10bit resolution (0-1023), Sensor has a resolution of 0 - 5119mm, Each unit of the 0-1023 resolution is 5mm
+ * 
+ * The 10-meter sensors (MB7363, MB7366, MB7383, and MB7386) use a scale factor of (Vcc/10240) per 1-mm.
+ * Particle 12bit resolution (0-4095), Sensor has a resolution of 0 - 10239mm, Each unit of the 0-4095 resolution is 2.5mm
+ * Feather has 10bit resolution (0-1023), Sensor has a resolution of 0 - 10239mm, Each unit of the 0-1023 resolution is 10mm
+ */
+ 
 #define DISTANCE_GAUGE_PIN  A5
 #define DG_BUCKETS          60
 unsigned int dg_bucket = 0;
-unsigned int dg_divideby = 4;                 // Default divisor of sensor reading is for the 10m, 5m is 8
+unsigned int dg_resolution_adjust = 5;                 // Default is 5m sensor
 unsigned int dg_buckets[DG_BUCKETS];
 
 /*
@@ -450,10 +462,7 @@ unsigned int dg_buckets[DG_BUCKETS];
  * ======================================================================================================================
  */
 void DS_TakeReading() {
-  dg_buckets[dg_bucket] = (int) analogRead(DISTANCE_GAUGE_PIN)/dg_divideby; // Partical Pins are 12bit resolution (0-4095) 
-                                                                            // Sensors 0-1023
-                                                                            // 10m Sensors need a divisor of 4
-                                                                            // 5m  Sensors need a divisor of 8
+  dg_buckets[dg_bucket] = (int) analogRead(DISTANCE_GAUGE_PIN) * dg_resolution_adjust;
   dg_bucket = (++dg_bucket) % DG_BUCKETS; // Advance bucket index for next reading
 }
 
@@ -466,11 +475,11 @@ void DS_Initialize() {
   Output ("DS:INIT");
   if (cf_ds_enable) {
     if (cf_ds_enable == 5) {
-      dg_divideby = 8;
+      dg_resolution_adjust = 5;
       Output ("DIST=5M");
     }
     else if (cf_ds_enable == 10) {
-      dg_divideby = 4;
+      dg_resolution_adjust = 10;
       Output ("DIST=10M");
     }
     else {

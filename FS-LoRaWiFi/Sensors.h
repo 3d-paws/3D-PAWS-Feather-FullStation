@@ -658,10 +658,23 @@ void hi_initialize() {
 
 /* 
  *=======================================================================================================================
- * hi_calculate() - Compute Heat Index Temperature Returns Fahrenheit
+ * hi_calculate() - Compute Heat Index Temperature Returns Celsius
+ * 
+ * SEE https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+ * 
+ * The regression equation of Rothfusz is:
+ * HI = -42.379 + 2.04901523*T + 10.14333127*RH - .22475541*T*RH - .00683783*T*T - .05481717*RH*RH + .00122874*T*T*RH + 
+ *      .00085282*T*RH*RH - .00000199*T*T*RH*RH
+ * 
+ * The Rothfusz regression is not appropriate when conditions of temperature and humidity 
+ * warrant a heat index value below about 80 degrees F. In those cases, a simpler formula 
+ * is applied to calculate values consistent with Steadman's results:
+ * HI = 0.5 * {T + 61.0 + [(T-68.0)*1.2] + (RH*0.094)} 
  *=======================================================================================================================
  */
 float hi_calculate(float T, float RH) {
+  float HI;
+  float HI_f;
 
   if ((T == -999.9) || (RH == -999.9)) {
     return (-999.9);
@@ -669,27 +682,58 @@ float hi_calculate(float T, float RH) {
 
   // Convert temperature from Celsius to Fahrenheit
   float T_f = T * 9.0 / 5.0 + 32.0;
+
+  // Steadman's equation
+  HI_f = 0.5 * (T_f + 61.0 + ((T_f - 68.0)*1.2) + (RH * 0.094));
+
+  // Compute the average of the simple HI with the actual temperature [deg F]
+  HI_f = (HI_f + T_f) / 2;
+
+  if (HI_f >= 80.0) { 
+    // Use Rothfusz's equation
     
-  // Constants for the Heat Index formula
-  float c1 = -42.379;
-  float c2 = 2.04901523;
-  float c3 = 10.14333127;
-  float c4 = -0.22475541;
-  float c5 = -0.00683783;
-  float c6 = -0.05481717;
-  float c7 = 0.00122874;
-  float c8 = 0.00085282;
-  float c9 = -0.00000199;
+    // Constants for the Heat Index formula
+    float c1 = -42.379;
+    float c2 = 2.04901523;
+    float c3 = 10.14333127;
+    float c4 = -0.22475541;
+    float c5 = -0.00683783;
+    float c6 = -0.05481717;
+    float c7 = 0.00122874;
+    float c8 = 0.00085282;
+    float c9 = -0.00000199;
     
-  // Heat Index calculation
-  float HI_f = c1 + (c2 * T_f) + (c3 * RH) + (c4 * T_f * RH) +
-               (c5 * T_f * T_f) + (c6 * RH * RH) + 
-               (c7 * T_f * T_f * RH) + (c8 * T_f * RH * RH) +
-               (c9 * T_f * T_f * RH * RH);
-                 
+    // Heat Index calculation
+    HI_f = c1 + (c2 * T_f) + (c3 * RH) + (c4 * T_f * RH) +
+                (c5 * T_f * T_f) + (c6 * RH * RH) + 
+                (c7 * T_f * T_f * RH) + (c8 * T_f * RH * RH) +
+                (c9 * T_f * T_f * RH * RH);
+
+    if ((RH < 13.0) && ((T_f > 80.0) && (T_f < 112.0)) ) {
+      // If the RH is less than 13% and the temperature is between 80 and 112 degrees F, 
+      // then the following adjustment is subtracted from HI: 
+      // ADJUSTMENT = [(13-RH)/4]*SQRT{[17-ABS(T-95.)]/17}
+
+      float Adjustment = ( (13 - RH) / 4 ) * sqrt( (17 - abs(T_f - 95.0) ) / 17 );
+
+      HI_f = HI_f - Adjustment;
+
+    }
+    else if ((RH > 85.0) && ((T_f > 80.0) && (T_f < 87.0)) ) {
+      // If the RH is greater than 85% and the temperature is between 80 and 87 degrees F, 
+      // then the following adjustment is added to HI: 
+      // ADJUSTMENT = [(RH-85)/10] * [(87-T)/5]
+
+      float Adjustment = ( (RH - 85) / 10 ) * ( (87.0 - T_f) / 5 );
+
+      HI_f = HI_f + Adjustment;
+    }
+  }
+
   // Convert Heat Index from Fahrenheit to Celsius
-  float HI = (HI_f - 32.0) * 5.0 / 9.0;
-    
+  HI = (HI_f - 32.0) * 5.0 / 9.0;
+
+  // Quality Control Check
   HI = (isnan(HI) || (HI < QC_MIN_HI)  || (HI >QC_MAX_HI))  ? QC_ERR_HI  : HI;
 
   return (HI);

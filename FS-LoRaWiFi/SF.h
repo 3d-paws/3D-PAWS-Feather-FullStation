@@ -168,7 +168,6 @@ bool isValidHexString(const char *hexString, size_t expectedLength) {
     return (true); // Valid hex string
 }
 
-
 /*
  * =======================================================================================================================
  * hexStringToUint32() - 

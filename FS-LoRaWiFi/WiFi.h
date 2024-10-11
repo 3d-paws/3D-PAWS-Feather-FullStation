@@ -220,10 +220,6 @@ void WiFi_connect_wait(int wait_seconds) {
   int r, exit_timer=0;
   int posted = 0;
 
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi_connect_wait(30);
-  }
-
   if (WiFi.status() == WL_CONNECTED) {
     Output("OBS:SEND->HTTP");
     if (!wifi.connect(cf_webserver, cf_webserver_port)) {
@@ -303,10 +299,6 @@ int WiFi_Send_https(char *obs) {
   int r, exit_timer=0;
   int posted = 0;
 
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi_connect_wait(30);
-  }
-
   if (WiFi.status() == WL_CONNECTED) {
     Output("OBS:SEND->HTTPS");
     if (!wifi_ssl.connect(cf_webserver, cf_webserver_port)) {
@@ -381,11 +373,20 @@ int WiFi_Send_https(char *obs) {
  * ======================================================================================================================
  */
 int WiFi_Send(char *obs) {
-  if (cf_webserver_port == 80) {
-    return (WiFi_Send_http(obs));
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi_connect_wait(30);
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    if (cf_webserver_port == 80) {
+      return (WiFi_Send_http(obs));
+    }
+    else {
+      return (WiFi_Send_https(obs));
+    }
   }
   else {
-    return (WiFi_Send_https(obs));
+    return (0); // Not Posted
   }
 }
 
