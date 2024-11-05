@@ -37,6 +37,9 @@
  *           2024-08-26 RJB Moved the WiFi connection check / reconnect to WiFi_Send()
  *           2024-08-27 RJB Changed Distance sensor to multiply raw value by 5 for 5m, 10 for 10m, OBS will be in mm
  *           2024-10-07 RJB Improved hi_calculate() function.
+ *           2024-11-05 RJB Discovered BMP390 first pressure reading is bad. Added read pressure to bmx_initialize()
+ *                          Bug fixes for 2nd BMP sensor in bmx_initialize() using first sensor data structure
+ *                          Now will only send humidity if bmx sensor supports it.
  *                          
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config

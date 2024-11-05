@@ -297,8 +297,6 @@ void OBS_Take() {
 
   obs.bv = vbat_get();
 
-  Output("TAKE1");
-
   // Rain Gauge 1 - Each tip is 0.2mm of rain
   if (cf_rg1_enable) {
     rg1ds = (millis()-raingauge1_interrupt_stime)/1000;  // seconds since last rain gauge observation logged
@@ -361,8 +359,6 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
-  Output("TAKE2");
-
   if (cf_ds_enable) {
     strcpy (obs.sensor[sidx].id, "ds");
     obs.sensor[sidx].type = F_OBS;
@@ -405,8 +401,6 @@ void OBS_Take() {
 
     Wind_ClearSampleCount(); // Clear Counter, Counter maintain how many samples since last obs sent
   }
-
-  Output("TAKE3");
   
   //
   // Add I2C Sensors
@@ -452,13 +446,13 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
 
     // BMX1 Humidity
-    strcpy (obs.sensor[sidx].id, "bh1");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = h;
-    obs.sensor[sidx++].inuse = true;
+    if (BMX_1_type == BMX_TYPE_BME280) {
+      strcpy (obs.sensor[sidx].id, "bh1");
+      obs.sensor[sidx].type = F_OBS;
+      obs.sensor[sidx].f_obs = h;
+      obs.sensor[sidx++].inuse = true;
+    }
   }
-
-  Output("TAKE4");
   
   if (BMX_2_exists) {
     float p = 0.0;
@@ -501,13 +495,13 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
 
     // BMX2 Humidity
-    strcpy (obs.sensor[sidx].id, "bh2");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = h;
-    obs.sensor[sidx++].inuse = true;
+    if (BMX_2_type == BMX_TYPE_BME280) {
+      strcpy (obs.sensor[sidx].id, "bh2");
+      obs.sensor[sidx].type = F_OBS;
+      obs.sensor[sidx].f_obs = h;
+      obs.sensor[sidx++].inuse = true;
+    }
   }
-
-  Output("TAKE5");
   
   if (HTU21DF_exists) {
     float t = 0.0;
@@ -529,8 +523,6 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = t;
     obs.sensor[sidx++].inuse = true;
   }
-
-  Output("TAKE6");
   
   if (SHT_1_exists) {                                                                               
     float t = 0.0;
@@ -575,8 +567,6 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = h;
     obs.sensor[sidx++].inuse = true;
   }
-
-  Output("TAKE7");
   
   if (HIH8_exists) {
     float t = 0.0;
@@ -601,8 +591,6 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = h;
     obs.sensor[sidx++].inuse = true;
   }
-
-  Output("TAKE8");
   
   if (SI1145_exists) {
     float si_vis = uv.readVisible();
@@ -657,8 +645,6 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = si_uv;
     obs.sensor[sidx++].inuse = true;
   }
-
-  Output("TAKE9");
     
   if (MCP_1_exists) {
     float t = 0.0;
@@ -685,8 +671,6 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = t;
     obs.sensor[sidx++].inuse = true;
   }
-
-  Output("TAKE10");
   
   if (VEML7700_exists) {
     float lux = veml.readLux(VEML_LUX_AUTO);
@@ -698,8 +682,6 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = lux;
     obs.sensor[sidx++].inuse = true;
   }
-
-  Output("TAKE11");
   
   if (PM25AQI_exists) {
     // Standard Particle PM1.0 concentration unit µg m3
@@ -741,8 +723,6 @@ void OBS_Take() {
     // Clear readings
     pm25aqi_clear();
   }
-
-  Output("TAKE12");
   
   // Heat Index Temperature
   if (HI_exists) {
@@ -781,7 +761,6 @@ void OBS_Do() {
   
   I2C_Check_Sensors(); // Make sure Sensors are online
 
-  Output("OBS_TAKE()");
   OBS_Take();          // Take an observation
 
   // At this point, the obs data structure has been filled in with observation data
