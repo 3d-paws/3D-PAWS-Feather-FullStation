@@ -113,9 +113,7 @@ void gps_initialize(bool verbose) {
       if (verbose) Output("GPS:NF");
     }
   }
-
-  
-  if (gps_exists) {
+  else {
     uint64_t wait;
     uint64_t period;
     uint16_t default_year = gps.date.year();   // This will be 2000 if it has not updated
@@ -197,12 +195,15 @@ void gps_publish() {
   float bv = vbat_get(); 
 
   if (WiFi_valid) {
-    sprintf (obsbuf, "%s?key=%s&instrument_id=%d", cf_urlpath, cf_apikey, cf_instrument_id);
+    sprintf (obsbuf, "%s?key=%s&instrument_id=%d&", 
+      cf_urlpath, cf_apikey, cf_instrument_id, DeviceID);
   }
-
-  sprintf (obsbuf+strlen(obsbuf), "at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
+      
+  sprintf (obsbuf+strlen(obsbuf), "devid=%s&at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
+    DeviceID,
     dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
     dt->tm_hour, dt->tm_min, dt->tm_sec);
+    
   sprintf (obsbuf+strlen(obsbuf), "&ms=%u", millis());
 
   sprintf (obsbuf+strlen(obsbuf), "&bv=%d.%02d",

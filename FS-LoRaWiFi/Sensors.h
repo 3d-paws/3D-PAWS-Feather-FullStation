@@ -73,6 +73,36 @@ bool HTU21DF_exists = false;
 
 /*
  * ======================================================================================================================
+ *  Tinovi Leaf Wetness
+ *    Chip ID = 0x61,  Library init checks this.
+ * ======================================================================================================================
+ */
+#define TLW_ADDRESS     0x61
+LeafSens tlw;
+bool TLW_exists = false;
+
+/*
+ * ======================================================================================================================
+ *  Tinovi Soil Moisture
+ *    Chip ID = 0x63,  Library init checks this.
+ * ======================================================================================================================
+ */
+#define TSM_ADDRESS     0x63
+SVCS3 tsm;
+bool TSM_exists = false;
+
+/*
+ * ======================================================================================================================
+ *  Tinovi MultiLevel Soil Moisture (4 Soil and 2 Temperature) 
+ *    Chip ID = 0x63,  Library init checks this.
+ * ======================================================================================================================
+ */
+#define TMSM_ADDRESS    0x65
+SVMULTI tmsm;
+bool TMSM_exists = false;
+
+/*
+ * ======================================================================================================================
  *  Wet Bulb Temperature - Derived from Temperature and Humidity Sensonrs
  * ======================================================================================================================
  */
@@ -591,6 +621,73 @@ bool hih8_getTempHumid(float *t, float *h) {
     return (false);
   }
 }
+
+/* 
+ *=======================================================================================================================
+ * tlw_initialize() -  Tinovi Leaf Wetness initialize
+ *=======================================================================================================================
+ */
+void tlw_initialize() {
+  Output("TLW:INIT");
+  
+  // Tinovi Leaf Wetness initialize (I2C ADDRESS = 0x61)
+  if (!I2C_Device_Exist(TLW_ADDRESS)) { 
+    msgp = (char *) "TLW NF";
+    TLW_exists = false;
+  }
+  else {
+    tlw.init(TLW_ADDRESS);
+    msgp = (char *) "TLW OK";
+    TLW_exists = true;
+    SystemStatusBits |= SSB_TLW;  // Turn On Bit
+  }
+  Output (msgp);
+}
+
+/* 
+ *=======================================================================================================================
+ * tsm_initialize() -  Tinovi Soil Moisture initialize
+ *=======================================================================================================================
+ */
+void tsm_initialize() {
+  Output("TSM:INIT");
+  
+  // Tinovi Soil Moisture initialize (I2C ADDRESS = 0x63)
+  if (!I2C_Device_Exist(TSM_ADDRESS)) { 
+    msgp = (char *) "TSM NF";
+    TSM_exists = false;
+  }
+  else {
+    tsm.init(TSM_ADDRESS);
+    msgp = (char *) "TSM OK";
+    TSM_exists = true;
+    SystemStatusBits |= SSB_TSM;  // Turn On Bit
+  }
+  Output (msgp);
+}
+
+/* 
+ *=======================================================================================================================
+ * tmsm_initialize() -  Tinovi MultiLevel Soil Moisture initialize
+ *=======================================================================================================================
+ */
+void tmsm_initialize() {
+  Output("TMSM:INIT");
+  
+  // Tinovi MultiLevel Soil Moisture initialize (I2C ADDRESS = 0x65)
+  if (!I2C_Device_Exist(TMSM_ADDRESS)) { 
+    msgp = (char *) "TMSM NF";
+    TMSM_exists = false;
+  }
+  else {
+    tmsm.init(TMSM_ADDRESS);
+    msgp = (char *) "TMSM OK";
+    TMSM_exists = true;
+    SystemStatusBits |= SSB_TMSM;  // Turn On Bit
+  }
+  Output (msgp);
+}
+
 
 /* 
  *=======================================================================================================================

@@ -409,12 +409,12 @@ void SD_ReadConfigFile() {
   cf_ds_enable    = SD_findInt(F("ds_enable"));
   sprintf(msgbuf, "CF:%s=[%d]", F("ds_enable"), cf_ds_enable); Output (msgbuf);
 
-  cf_5m_enable    = SD_findInt(F("5m_enable"));
-  sprintf(msgbuf, "CF:%s=[%d]", F("5m_enable"), cf_5m_enable); Output (msgbuf);
-  
-  cf_15m_enable   = SD_findInt(F("15m_enable"));
-  sprintf(msgbuf, "CF:%s=[%d]", F("15m_enable"), cf_15m_enable); Output (msgbuf);
+  cf_ds_baseline = SD_findInt(F("ds_baseline"));
+  sprintf(msgbuf, "CF:ds_baseline=[%d]", cf_ds_baseline); Output (msgbuf);
 
+  cf_obs_period   = SD_findInt(F("obs_period"));
+  sprintf(msgbuf, "CF:obs_period=[%d]", cf_obs_period); Output (msgbuf);
+  
   // Misc
   cf_daily_reboot = SD_findInt(F("daily_reboot"));
   sprintf(msgbuf, "CF:%s=[%d]", F("daily_reboot"), cf_daily_reboot); Output (msgbuf);

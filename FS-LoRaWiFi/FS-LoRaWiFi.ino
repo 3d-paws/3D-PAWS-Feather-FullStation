@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2024] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-240825"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-250127"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
@@ -40,6 +40,15 @@
  *           2024-11-05 RJB Discovered BMP390 first pressure reading is bad. Added read pressure to bmx_initialize()
  *                          Bug fixes for 2nd BMP sensor in bmx_initialize() using first sensor data structure
  *                          Now will only send humidity if bmx sensor supports it.
+ *           2025-01-26 RJB Added support for Tinovi moisture sensors (Leaf, Soil, Multi Level Soil)
+ *                          Added support for GetDeviceID()
+ *                          Added support for observation intervals 1,5,6,10,15,20,30
+ *                          
+ *                          
+ *  Future Note - Support Chords and Google Big Query
+ *    OBS.h line 212 will need to be modified
+ *    EX URL curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+ *               "https://bigquery.googleapis.com/bigquery/v2/projects/YOUR_PROJECT_ID/datasets/YOUR_DATASET_ID"
  *                          
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
@@ -56,10 +65,12 @@
  * Includes
  *=======================================================================================================================
  */
+// #include <SDU.h>  // Secure Digital Updater 
+
 #include <SPI.h>
 #include <Wire.h>
 #include <SD.h>
-#include <ctime>                // Provides the tm structure
+#include <ctime>  // Provides the tm structure
 #include <WiFi101.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
@@ -74,12 +85,15 @@
 #include <Adafruit_VEML7700.h>
 #include <Adafruit_PM25AQI.h>
 #include <Adafruit_EEPROM_I2C.h>
-#include <lmic.h>                // MCCI_LoRaWAN_LMIC_library
+#include <lmic.h>    // MCCI_LoRaWAN_LMIC_library
 #include <hal/hal.h>
-#include <RTClib.h>              // https://github.com/adafruit/RTClib
-                                 //   FYI: this library has DateTime functions in it used by TimeManagement.h
+#include <RTClib.h>  // https://github.com/adafruit/RTClib FYI: this library has DateTime functions in it used by TimeManagement.h
+#include <i2cArduino.h>
+#include <LeafSens.h>
+#include <i2cMultiSm.h>
 #include <SparkFun_I2C_GPS_Arduino_Library.h>
 #include <TinyGPS++.h>
+
 
 /*
  * Required Libraries:
@@ -105,6 +119,9 @@
  *  SENS0390                https://wiki.dfrobot.com/Ambient_Light_Sensor_0_200klx_SKU_SEN0390 - DFRobot_B_LUX_V30B - 1.0.1 I2C ADDRESS 0x94
  *  EEPROM                  https://docs.particle.io/reference/device-os/api/eeprom/eeprom/ , https://www.adafruit.com/product/5146
  *  SpatkFun_I2C_GPS        https://github.com/sparkfun/SparkFun_I2C_GPS_Arduino_Library I2C ADDRESS 0x10
+ *  LeafSens                https://github.com/tinovi/LeafArduinoI2c I2C ADDRESS 0x61
+ *  i2cArduino              https://github.com/tinovi/i2cArduino     I2C ADDRESS 0x63
+ *  i2cMultiSm              https://github.com/tinovi/i2cMultiSoilArduino/tree/master/lib ADDRESS 0x65
  */
  
 /*
@@ -171,27 +188,29 @@
  * ON =    SSB |= SSB_PWROFF
  * ======================================================================================================================
  */
-#define SSB_PWRON           0x1     // Set at power on, but cleared after first observation
-#define SSB_SD              0x2     // Set if SD missing at boot or other SD related issues
-#define SSB_RTC             0x4     // Set if RTC missing at boot
-#define SSB_OLED            0x8     // Set if OLED missing at boot, but cleared after first observation
-#define SSB_N2S             0x10    // Set when Need to Send observations exist
-#define SSB_FROM_N2S        0x20    // Set in transmitted N2S observation when finally transmitted
-#define SSB_AS5600          0x40    // Set if wind direction sensor AS5600 has issues                                                        
-#define SSB_BMX_1           0x80    // Set if Barometric Pressure & Altitude Sensor missing
-#define SSB_BMX_2           0x100   // Set if Barometric Pressure & Altitude Sensor missing
-#define SSB_HTU21DF         0x200   // Set if Humidity & Temp Sensor missing
-#define SSB_SI1145          0x400   // Set if UV index & IR & Visible Sensor missing
-#define SSB_MCP_1           0x800   // Set if Precision I2C Temperature Sensor missing
-#define SSB_MCP_2           0x1000  // Set if Precision I2C Temperature Sensor missing
-#define SSB_LORA            0x2000  // Set if LoRa Radio missing at startup
-#define SSB_SHT_1           0x4000  // Set if SHTX1 Sensor missing
-#define SSB_SHT_2           0x8000  // Set if SHTX2 Sensor missing
-#define SSB_HIH8            0x10000 // Set if HIH8000 Sensor missing
-#define SSB_GPS             0x20000 // Set if GPS Sensor missing
-#define SSB_PM25AQI         0x40000 // Set if PM25AQI Sensor missing
-#define SSB_EEPROM          0x80000 // Set if 24LC32 EEPROM missing
-
+#define SSB_PWRON           0x1      // Set at power on, but cleared after first observation
+#define SSB_SD              0x2      // Set if SD missing at boot or other SD related issues
+#define SSB_RTC             0x4      // Set if RTC missing at boot
+#define SSB_OLED            0x8      // Set if OLED missing at boot, but cleared after first observation
+#define SSB_N2S             0x10     // Set when Need to Send observations exist
+#define SSB_FROM_N2S        0x20     // Set in transmitted N2S observation when finally transmitted
+#define SSB_AS5600          0x40     // Set if wind direction sensor AS5600 has issues                                                        
+#define SSB_BMX_1           0x80     // Set if Barometric Pressure & Altitude Sensor missing
+#define SSB_BMX_2           0x100    // Set if Barometric Pressure & Altitude Sensor missing
+#define SSB_HTU21DF         0x200    // Set if Humidity & Temp Sensor missing
+#define SSB_SI1145          0x400    // Set if UV index & IR & Visible Sensor missing
+#define SSB_MCP_1           0x800    // Set if Precision I2C Temperature Sensor missing
+#define SSB_MCP_2           0x1000   // Set if Precision I2C Temperature Sensor missing
+#define SSB_LORA            0x2000   // Set if LoRa Radio missing at startup
+#define SSB_SHT_1           0x4000   // Set if SHTX1 Sensor missing
+#define SSB_SHT_2           0x8000   // Set if SHTX2 Sensor missing
+#define SSB_HIH8            0x10000  // Set if HIH8000 Sensor missing
+#define SSB_GPS             0x20000  // Set if GPS Sensor missing
+#define SSB_PM25AQI         0x40000  // Set if PM25AQI Sensor missing
+#define SSB_EEPROM          0x80000  // Set if 24LC32 EEPROM missing
+#define SSB_TLW             0x100000 // Set if Tinovi Leaf Wetness I2C Sensor missing
+#define SSB_TSM             0x200000 // Set if Tinovi Soil Moisture I2C Sensor missing
+#define SSB_TMSM            0x400000 // Set if Tinovi MultiLevel Soil Moisture I2C Sensor missing
 
 /*
  * ======================================================================================================================
@@ -217,6 +236,14 @@ char *obsp;                     // Pointer to obsbuf
 
 int DailyRebootCountDownTimer;
 
+char DeviceID[25];              // A generated ID based on board's 128-bit serial number converted down to 96bits
+
+const char* pinNames[] = {
+  "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7",
+  "D8", "D9", "D10", "D11", "D12", "D13",
+  "A0", "A1", "A2", "A3", "A4", "A5"
+};
+
 /*
  * ======================================================================================================================
  *  Local Code Includes - Do not change the order of the below 
@@ -236,7 +263,44 @@ int DailyRebootCountDownTimer;
 #include "Sensors.h"              // I2C Based Sensors
 #include "OBS.h"                  // Do Observation Processing
 #include "SM.h"                   // Station Monitor
+//#include "INFO.h"                 // Station Information
 
+/* 
+ *=======================================================================================================================
+ * obs_interval_initialize() - observation interval 1,5,6,10,15,20,30
+ *=======================================================================================================================
+ */
+void obs_interval_initialize() {
+  if ((cf_obs_period != 1) &&
+      (cf_obs_period != 5) && 
+      (cf_obs_period != 6) && 
+      (cf_obs_period != 10) &&
+      (cf_obs_period != 15) &&
+      (cf_obs_period != 20) &&
+      (cf_obs_period != 30)) {
+    sprintf (Buffer32Bytes, "OBS Interval:%dm Now:1m", cf_obs_period);
+    Output(Buffer32Bytes);
+    cf_obs_period = 1; 
+  }
+  else {
+    sprintf (Buffer32Bytes, "OBS Interval:%dm", cf_obs_period);
+    Output(Buffer32Bytes);    
+  }
+}
+
+/* 
+ *=======================================================================================================================
+ * time_to_next_obs() - This will return milliseconds to next observation
+ *=======================================================================================================================
+ */
+int time_to_next_obs() {
+  if (cf_obs_period == 1) {
+    return (millis() + 60000); // Just go 60 seconds from now.
+  }
+  else {
+    return ((cf_obs_period*60000) - (millis() % (cf_obs_period*60000))); // The mod operation gives us seconds passed
+  }
+}
 
 /*
  * ======================================================================================================================
@@ -388,6 +452,10 @@ void setup() {
   Serial_write(COPYRIGHT);
   Output (VERSION_INFO);
 
+  GetDeviceID();
+  sprintf (msgbuf, "DevID:%s", DeviceID);
+  Output (msgbuf);
+
   Output ("REBOOTPN SET");
   pinMode (REBOOT_PIN, OUTPUT); // By default all pins are LOW when board is first powered on. Setting OUTPUT keeps pin LOW.
   
@@ -415,9 +483,11 @@ void setup() {
   gps_initialize(true);  // true = print NotFound message
 
   EEPROM_initialize();
-  
+
+  obs_interval_initialize();
+
+  // Optipolar Hall Effect Sensor SS451A - Rain1 Gauge
   if (cf_rg1_enable) {
-    // Optipolar Hall Effect Sensor SS451A - Rain1 Gauge
     raingauge1_interrupt_count = 0;
     raingauge1_interrupt_stime = millis();
     raingauge1_interrupt_ltime = 0;  // used to debounce the tip
@@ -454,6 +524,11 @@ void setup() {
   lux_initialize();   // Can not use when GPS Module is connected same i2c address of 0x10
 #endif
   pm25aqi_initialize();
+
+  // Tinovi Mositure Sensors
+  tlw_initialize();
+  tsm_initialize();
+  tmsm_initialize();
 
   // Derived Observations
   wbt_initialize();
@@ -575,21 +650,7 @@ void loop() {
         Output ("OBS_Do() NotRun-Bad TM");
       }
 
-      if (cf_5m_enable) {    
-        // Log 0,5,10,15... minute periods of each hour
-        // (Time_of_obs % 300) = Seconds since last 5min period
-        // (300 - (Time_of_obs % 300)) = Seconds to next 5min period
-        Time_of_next_obs = ((300 - (Time_of_obs % 300)) * 1000) + millis();  // Time_of_next_obs in ms from now
-      }
-      else if (cf_15m_enable) {    
-        // Log 0,15,30,45 minute periods of each hour
-        // (Time_of_obs % 900) = Seconds since last 15min period
-        // (900 - (Time_of_obs % 900)) = Seconds to next 15min period
-        Time_of_next_obs = ((900 - (Time_of_obs % 900)) * 1000) + millis();  // Time_of_next_obs in ms from now
-      }
-      else {
-        Time_of_next_obs = millis() + 60000;
-      }   
+      Time_of_next_obs = time_to_next_obs();   
       JPO_ClearBits(); // Clear status bits from boot after we log our first observations
     }
   }

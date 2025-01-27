@@ -3,7 +3,10 @@
  *  OBS.h - Observation Handeling
  * ======================================================================================================================
  */
-void BackGroundWork();   // Prototype this function to aviod compile function unknown issue.
+ 
+// Prototype thess functions to aviod compile function unknown issue.
+void BackGroundWork();   
+int time_to_next_obs();
 
 #define OBSERVATION_INTERVAL      60   // Seconds
 #define MAX_SENSORS         48
@@ -209,10 +212,12 @@ bool OBS_Build() {
 
     // If WiFi add additional items to be logged on a recording site like Chords.
     if (WiFi_valid) {
-      sprintf (obsbuf, "%s?key=%s&instrument_id=%d", cf_urlpath, cf_apikey, cf_instrument_id);
+      sprintf (obsbuf, "%s?key=%s&instrument_id=%d&",
+        cf_urlpath, cf_apikey, cf_instrument_id, DeviceID);
     }
     
-    sprintf (obsbuf+strlen(obsbuf), "at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
+    sprintf (obsbuf+strlen(obsbuf), "devid=%s&at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
+      DeviceID,
       dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
       dt->tm_hour, dt->tm_min, dt->tm_sec);
 
@@ -360,10 +365,22 @@ void OBS_Take() {
   }
 
   if (cf_ds_enable) {
+    float ds_median, ds_median_raw;
+    
+    ds_median = ds_median_raw = DS_Median();
+    if (cf_ds_baseline > 0) {
+      ds_median = cf_ds_baseline - ds_median_raw;
+    }
+
     strcpy (obs.sensor[sidx].id, "ds");
     obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = DS_Median();
-    obs.sensor[sidx++].inuse = true;    
+    obs.sensor[sidx].f_obs = ds_median;
+    obs.sensor[sidx++].inuse = true;
+
+    strcpy (obs.sensor[sidx].id, "dsr");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = ds_median_raw;
+    obs.sensor[sidx++].inuse = true;
   }
 
   if (AS5600_exists) {
@@ -748,6 +765,101 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = (float) wbgt_calculate(heat_index);
     obs.sensor[sidx++].inuse = true;    
   }
+
+  // Tinovi Leaf Wetness
+  if (TLW_exists) {
+    tlw.newReading();
+    delay(100);
+    float w = tlw.getWet();
+    float t = tlw.getTemp();
+    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
+
+    strcpy (obs.sensor[sidx].id, "tlww");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) w;
+    obs.sensor[sidx++].inuse = true; 
+
+    strcpy (obs.sensor[sidx].id, "tlwt");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) t;
+    obs.sensor[sidx++].inuse = true;
+  }
+
+  // Tinovi Soil Moisture
+  if (TSM_exists) {
+    tsm.newReading();
+    delay(100);
+    float e25 = tsm.getE25();
+    float ec = tsm.getEC();
+    float vwc = tsm.getVWC();
+    float t = tsm.getTemp();
+    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
+
+    strcpy (obs.sensor[sidx].id, "tsme25");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) e25;
+    obs.sensor[sidx++].inuse = true;
+
+    strcpy (obs.sensor[sidx].id, "tsmec");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) ec;
+    obs.sensor[sidx++].inuse = true;
+
+    strcpy (obs.sensor[sidx].id, "tsmvwc");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) vwc;
+    obs.sensor[sidx++].inuse = true; 
+
+    strcpy (obs.sensor[sidx].id, "tsmt");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) t;
+    obs.sensor[sidx++].inuse = true;
+  }
+
+  // Tinovi Multi Level Soil Moisture
+  if (TMSM_exists) {
+    soil_ret_t multi;
+    float t;
+
+    tmsm.newReading();
+    delay(100);
+    tmsm.getData(&multi);
+
+    strcpy (obs.sensor[sidx].id, "tmsms1");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) multi.vwc[0];
+    obs.sensor[sidx++].inuse = true;
+
+    strcpy (obs.sensor[sidx].id, "tmsms2");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) multi.vwc[1];
+    obs.sensor[sidx++].inuse = true;
+
+    strcpy (obs.sensor[sidx].id, "tmsms3");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) multi.vwc[2];
+    obs.sensor[sidx++].inuse = true;
+
+    strcpy (obs.sensor[sidx].id, "tmsms4");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) multi.vwc[3];
+    obs.sensor[sidx++].inuse = true;
+
+    t = multi.temp[0];
+    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
+    strcpy (obs.sensor[sidx].id, "tmsmt1");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) t;
+    obs.sensor[sidx++].inuse = true;
+
+    t = multi.temp[1];
+    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
+    strcpy (obs.sensor[sidx].id, "tmsmt2");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) t;
+    obs.sensor[sidx++].inuse = true;
+  } 
+  
   Output("OBS_TAKE(DONE)");
 }
 
@@ -833,14 +945,8 @@ void OBS_N2S_Publish() {
         // Loop through each line / obs and transmit
         
         // set timer on when we need to stop sending n2s obs
-        uint64_t TimeFromNow = millis() + 45000; // 1 min obs
-        if (cf_5m_enable) {  
-          TimeFromNow = millis() + (4 * 60000);  
-        }
-        else if (cf_15m_enable) {    
-          TimeFromNow = millis() + (14 * 60000);  
-        }
-        
+        uint64_t TimeFromNow = time_to_next_obs() - 45000; // stop sending 15 seconds before next observations period
+
         i = 0;
         while (fp.available() && (i < MAX_MSGBUF_SIZE )) {
           ch = fp.read();

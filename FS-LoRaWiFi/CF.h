@@ -55,15 +55,9 @@
  # Time Server
  ntpserver=pool.ntp.org
 
+ # Observation Period (1,5,6,10,15,20,30)
  # 1 minute observation period is the default
-
- # 5 minute observation periods. Overrides 15m & 1m options
- # Options 0,1   
- 5m_enable=0
- 
- # 15 minute observation periods. Overrides 1m 
- # Options 0,1
- 15m_enable=0
+ obs_period=1
 
  # Rain Gauge rg1 pin A2
  # Options 0,1
@@ -76,6 +70,9 @@
  # Distance Sensor for Snow, Surge, Stream on pin A5
  # Options 0 = No sensor, 5 = 5M sendor, 10 = 10m sensor
  ds_enable=0
+
+ # Distance sensor baseline. If positive, distance = baseline - ds_median
+ ds_baseline=0
 
  # Number of hours between daily reboots
  # A value of 0 disables this feature
@@ -113,7 +110,7 @@ char *cf_ntpserver = "";
 
 int cf_rg1_enable=0;
 int cf_rg2_enable=0;
-int cf_5m_enable=0;
-int cf_15m_enable=0;
+int cf_obs_period=1;
 int cf_ds_enable=0;
 int cf_daily_reboot=0;
+int cf_ds_baseline=0;
