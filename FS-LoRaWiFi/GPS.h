@@ -196,7 +196,7 @@ void gps_publish() {
 
   if (WiFi_valid) {
     sprintf (obsbuf, "%s?key=%s&instrument_id=%d&", 
-      cf_urlpath, cf_apikey, cf_instrument_id, DeviceID);
+      cf_urlpath, cf_apikey, cf_instrument_id);
   }
       
   sprintf (obsbuf+strlen(obsbuf), "devid=%s&at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",

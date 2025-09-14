@@ -413,6 +413,9 @@ void SD_ReadConfigFile() {
   sprintf(msgbuf, "CF:ds_baseline=[%d]", cf_ds_baseline); Output (msgbuf);
 
   cf_obs_period   = SD_findInt(F("obs_period"));
+  if (cf_obs_period == 0) {
+    cf_obs_period = 1;
+  }
   sprintf(msgbuf, "CF:obs_period=[%d]", cf_obs_period); Output (msgbuf);
   
   // Misc

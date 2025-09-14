@@ -102,10 +102,10 @@ void EEPROM_Validate() {
   if (!EEPROM_ChecksumValid() || SerialConsoleEnabled) {
     EEPROM_ClearRainTotals(current_time);
     if (SerialConsoleEnabled) {
-      Output("EEPROM CLEARED:SCE"); // Serial Console Enabled
+      Output(F("EEPROM CLEARED:SCE")); // Serial Console Enabled
     }
     else {
-      Output("EEPROM CLEARED:CSE"); // Checksum error
+      Output(F("EEPROM CLEARED:CSE")); // Checksum error
     }
   }
   else {

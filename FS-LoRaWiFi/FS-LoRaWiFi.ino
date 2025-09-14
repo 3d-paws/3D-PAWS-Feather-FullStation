@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2024] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-250127"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-250911"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
@@ -43,7 +43,10 @@
  *           2025-01-26 RJB Added support for Tinovi moisture sensors (Leaf, Soil, Multi Level Soil)
  *                          Added support for GetDeviceID()
  *                          Added support for observation intervals 1,5,6,10,15,20,30
+ *           2025-09-11 RJB In OBS fixed casting bug on rain collection. Added (float)
+ *                          (rain > (((float) rgds / 60) * QC_MAX_RG))
  *                          
+ *  Future, add a file to clear rain totals from EEPROM
  *                          
  *  Future Note - Support Chords and Google Big Query
  *    OBS.h line 212 will need to be modified
@@ -372,13 +375,14 @@ void BackGroundWork() {
     TurnLedOff = false;
   }
 }
+
 /* 
  *=======================================================================================================================
  * Wind_Distance_Air_Initialize()
  *=======================================================================================================================
  */
 void Wind_Distance_Air_Initialize() {
-  Output ("WDA:Init()");
+  Output (F("WDA:Init()"));
 
   // Clear windspeed counter
   if (AS5600_exists) {
@@ -450,24 +454,24 @@ void setup() {
   analogReadResolution(12);  //Set all analog pins to 12bit resolution reads to match the SAMD21's ADC channels
 
   Serial_write(COPYRIGHT);
-  Output (VERSION_INFO);
+  Output (F(VERSION_INFO));
 
   GetDeviceID();
   sprintf (msgbuf, "DevID:%s", DeviceID);
   Output (msgbuf);
 
-  Output ("REBOOTPN SET");
+  Output (F("REBOOTPN SET"));
   pinMode (REBOOT_PIN, OUTPUT); // By default all pins are LOW when board is first powered on. Setting OUTPUT keeps pin LOW.
   
-  Output ("HEARTBEAT SET");
+  Output ("F(HEARTBEAT SET"));
   pinMode (HEARTBEAT_PIN, OUTPUT);
   HeartBeat();
 
   // Initialize SD card if we have one.
-  Output("SD:INIT");
+  Output(F("SD:INIT"));
   SD_initialize();
   if (!SD_exists) {
-    Output("!!!HALTED!!!");
+    Output(F("!!!HALTED!!!"));
     while (true) {
       delay(1000);
     }
@@ -492,10 +496,10 @@ void setup() {
     raingauge1_interrupt_stime = millis();
     raingauge1_interrupt_ltime = 0;  // used to debounce the tip
     attachInterrupt(RAINGAUGE1_IRQ_PIN, raingauge1_interrupt_handler, FALLING);
-    Output ("RG1:ENABLED");
+    Output (F("RG1:ENABLED"));
   }
   else {
-    Output ("RG1:NOT ENABLED");
+    Output (F("RG1:NOT ENABLED"));
   }
 
   // Optipolar Hall Effect Sensor SS451A - Rain2 Gauge
@@ -504,10 +508,10 @@ void setup() {
     raingauge2_interrupt_stime = millis();
     raingauge2_interrupt_ltime = 0;  // used to debounce the tip
     attachInterrupt(RAINGAUGE2_IRQ_PIN, raingauge2_interrupt_handler, FALLING);
-    Output ("RG2:ENABLED");
+    Output (F("RG2:ENABLED"));
   }
   else {
-    Output ("RG2:NOT ENABLED");
+    Output (F("RG2:NOT ENABLED"));
   }
   
   DS_Initialize(); //Distance Sensor
@@ -537,28 +541,28 @@ void setup() {
 
   WiFi.setPins(8,7,4,2);
   if (WiFi_Feather()) {
-    Output("Feather:WiFi");
+    Output(F("Feather:WiFi"));
     WiFi_initialize();
   }
   else {
     // LoRaWAN Init
-    Output("Feather:LoRaWAN");
+    Output(F("Feather:LoRaWAN"));
     delay (10000);
     LW_initialize();
     if (!LW_valid) {
-      Output("LW Disabled");
+      Output(F("LW Disabled"));
     }
   }
 
   if (AS5600_exists) {
-    Output ("WS:Enabled");
+    Output (F("WS:Enabled"));
     // Optipolar Hall Effect Sensor SS451A - Wind Speed
     anemometer_interrupt_count = 0;
     anemometer_interrupt_stime = millis();
     attachInterrupt(ANEMOMETER_IRQ_PIN, anemometer_interrupt_handler, FALLING);
   }
   
-  Output ("Start Main Loop");
+  Output (F("Start Main Loop"));
   Time_of_next_obs = millis() + 60000; // Give Network some time to connect
 
   if (RTC_valid) {
@@ -573,7 +577,7 @@ void setup() {
  */
 void loop() {
   static int  countdown = 1800; // How log do we stay in calibration display mode
-  // Output ("LOOP");
+  // Output (F("LOOP"));
 
   if (!RTC_valid) {
     // Must get time from user
@@ -594,7 +598,7 @@ void loop() {
         now.year(), now.month(), now.day(),
         now.hour(), now.minute(), now.second());
       Output(msgbuf);
-      Output("SET RTC w/GMT, ENTER:");
+      Output(F("SET RTC w/GMT, ENTER:"));
       Output("YYYY:MM:DD:HH:MM:SS");
       first = false;
     }
@@ -605,9 +609,9 @@ void loop() {
                             // false = do not print NotFound message
 
     if (RTC_valid) {
-      Output("!!!!!!!!!!!!!!!!!!!");
-      Output("!!! Press Reset !!!");
-      Output("!!!!!!!!!!!!!!!!!!!"); 
+      Output(F("!!!!!!!!!!!!!!!!!!!"));
+      Output(F("!!! Press Reset !!!"));
+      Output(F("!!!!!!!!!!!!!!!!!!!")); 
       while (true) {
         delay (1000);
       }     
@@ -639,7 +643,7 @@ void loop() {
     
     // Perform an Observation, Write to SD, Send OBS
     if (millis() >= Time_of_next_obs) {
-      Output ("Do OBS");
+      Output (F("Do OBS"));
       
       now = rtc.now();
       Time_of_obs = now.unixtime();
@@ -647,7 +651,7 @@ void loop() {
         OBS_Do();
       }
       else {
-        Output ("OBS_Do() NotRun-Bad TM");
+        Output (F("OBS_Do() NotRun-Bad TM"));
       }
 
       Time_of_next_obs = time_to_next_obs();   
@@ -657,18 +661,18 @@ void loop() {
 
   // Reboot Boot Countdown, only if cf_daily_reboot is set
   if ((cf_daily_reboot>0) && (--DailyRebootCountDownTimer<=0)) {
-    Output ("Daily Reboot/OBS");
+    Output (F("Daily Reboot/OBS"));
     
     Time_of_obs = rtc_unixtime();
     OBS_Do();
     
-    Output("Rebooting");  
+    Output(F("Rebooting"));  
     delay(1000);
    
     DeviceReset();
 
     // We should never get here, but just incase 
-    Output("I'm Alive! Why?");
+    Output(F("I'm Alive! Why?"));
     DailyRebootCountDownTimer = cf_daily_reboot * 3600;
   }
   

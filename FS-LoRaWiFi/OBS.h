@@ -272,7 +272,7 @@ void OBS_N2S_Save() {
  * ======================================================================================================================
  */
 void OBS_Take() {
-  int sidx = 0;;
+  int sidx = 0;
   float rg1 = 0.0;
   float rg2 = 0.0;
   unsigned long rg1ds;   // rain gauge delta seconds, seconds since last rain gauge observation logged
@@ -310,7 +310,7 @@ void OBS_Take() {
     raingauge1_interrupt_stime = millis();
     raingauge1_interrupt_ltime = 0; // used to debounce the tip
     // QC Check - Max Rain for period is (Observations Seconds / 60s) *  Max Rain for 60 Seconds
-    rg1 = (isnan(rg1) || (rg1 < QC_MIN_RG) || (rg1 > ((rg1ds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rg1;
+    rg1 = (isnan(rg1) || (rg1 < QC_MIN_RG) || (rg1 > (((float)rg1ds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rg1;
   }
 
   // Rain Gauge 2 - Each tip is 0.2mm of rain
@@ -321,7 +321,7 @@ void OBS_Take() {
     raingauge2_interrupt_stime = millis();
     raingauge2_interrupt_ltime = 0; // used to debounce the tip
     // QC Check - Max Rain for period is (Observations Seconds / 60s) *  Max Rain for 60 Seconds
-    rg2 = (isnan(rg2) || (rg2 < QC_MIN_RG) || (rg2 > ((rg2ds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rg2;
+    rg2 = (isnan(rg2) || (rg2 < QC_MIN_RG) || (rg2 > (((float)rg2ds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rg2;
   }
 
   if (cf_rg1_enable || cf_rg2_enable) {

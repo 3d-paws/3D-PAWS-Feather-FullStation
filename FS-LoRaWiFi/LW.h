@@ -2,6 +2,9 @@
  * ======================================================================================================================
  *  LW.h - LoRaWAN Functions
  *  
+ *  LoRa Antenna Options
+ *  https://learn.adafruit.com/adafruit-feather-m0-radio-with-lora-radio-module/antenna-options
+ *  
  *  Setting Country Frequencies
  *  
  *  MCCI_LoRaWAN_LMIC_library/project_config/lmic_project_config.h

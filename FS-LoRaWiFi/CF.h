@@ -110,7 +110,7 @@ char *cf_ntpserver = "";
 
 int cf_rg1_enable=0;
 int cf_rg2_enable=0;
-int cf_obs_period=1;
 int cf_ds_enable=0;
-int cf_daily_reboot=0;
 int cf_ds_baseline=0;
+int cf_obs_period=0;
+int cf_daily_reboot=0;
