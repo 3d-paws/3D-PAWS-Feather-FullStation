@@ -845,6 +845,11 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = (float) multi.vwc[3];
     obs.sensor[sidx++].inuse = true;
 
+    strcpy (obs.sensor[sidx].id, "tmsms5");
+    obs.sensor[sidx].type = F_OBS;
+    obs.sensor[sidx].f_obs = (float) multi.vwc[4];
+    obs.sensor[sidx++].inuse = true;
+    
     t = multi.temp[0];
     t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
     strcpy (obs.sensor[sidx].id, "tmsmt1");

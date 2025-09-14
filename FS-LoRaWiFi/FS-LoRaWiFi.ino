@@ -1,4 +1,4 @@
-#define COPYRIGHT "Copyright [2024] [University Corporation for Atmospheric Research]"
+#define COPYRIGHT "Copyright [2025] [University Corporation for Atmospheric Research]"
 #define VERSION_INFO "FSLW-250911"  // Full Station LoRaWiFi - Release Date
 
 /*
@@ -45,6 +45,7 @@
  *                          Added support for observation intervals 1,5,6,10,15,20,30
  *           2025-09-11 RJB In OBS fixed casting bug on rain collection. Added (float)
  *                          (rain > (((float) rgds / 60) * QC_MAX_RG))
+ *                          Added tmsms5 that was forgotten
  *                          
  *  Future, add a file to clear rain totals from EEPROM
  *                          
@@ -463,7 +464,7 @@ void setup() {
   Output (F("REBOOTPN SET"));
   pinMode (REBOOT_PIN, OUTPUT); // By default all pins are LOW when board is first powered on. Setting OUTPUT keeps pin LOW.
   
-  Output ("F(HEARTBEAT SET"));
+  Output (F("HEARTBEAT SET"));
   pinMode (HEARTBEAT_PIN, OUTPUT);
   HeartBeat();
 
