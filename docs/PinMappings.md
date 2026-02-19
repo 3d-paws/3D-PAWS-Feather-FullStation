@@ -13,8 +13,8 @@
 | A1          | A1      | WatchDog Heartbeat                | Grove A0                       |
 | A2          | A2      | Interrupt for Anemometer          | Grove A2                       |
 | A3          | A3      | Interrupt for Rain Gauge 1        | Grove A2                       |
-| A4          | A4      | Interrupt for Rain Gauge 2        | Grove A4                       |
-| A5          | A5      | Distance Sensor                   | Grove A4                       |
+| A4          | A4      | Option Pin1 (op1)                 | Grove A4                       |
+| A5          | A5      | Option Pin2 (op2)                 | Grove A4                       |
 | SCK         | SCK     | SPI0 Clock                        | Not on Grove                   |
 | MOS         | MOSI    | Used by SD Card                   | Not on Grove                   |
 | MIS         | MISO    | Used by SD Card                   | Not on Grove                   |
