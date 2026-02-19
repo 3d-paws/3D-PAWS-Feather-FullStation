@@ -36,3 +36,4 @@ Below is an example of lmic_project_config.h for US Frequencies.
 Notes:
 - The software will determine if you are using a Adafruit Feather WiFi or LoRa board.
 - To put the Feather in firmware down load mode, press the button on the board twice quickly.
+- Once board is running 3D-PAWS code, there after you can place the firmware file in a file called UPDATE.BIN on the SD card. Then reboot. After update, the UPDATE.BIN will be removed from the SD card.
