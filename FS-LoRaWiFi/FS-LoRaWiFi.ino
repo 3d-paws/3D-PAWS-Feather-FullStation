@@ -1,10 +1,11 @@
-#define COPYRIGHT "Copyright [2025] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-250911"  // Full Station LoRaWiFi - Release Date
+#define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
+#define VERSION_INFO "FSLW-260219"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
  * Full Station LoRaWAN WiFi Node
- *   Board Type : Adafruit Feather M0 (LoRaWAN or WiFi Boards)
+ *   Board Type : Adafruit Feather M0 LoRaWAN Board https://www.adafruit.com/product/3178
+ *   Board Type : Adafruit Feather M0 WiFi Board https://www.adafruit.com/product/3010
  *   Description: 
  *   Author: Robert Bubon
  *   Date:   2024-01-01 RJB Initial
@@ -46,8 +47,37 @@
  *           2025-09-11 RJB In OBS fixed casting bug on rain collection. Added (float)
  *                          (rain > (((float) rgds / 60) * QC_MAX_RG))
  *                          Added tmsms5 that was forgotten
- *                          
- *  Future, add a file to clear rain totals from EEPROM
+ *           2025-09-17 RJB Renamed WRDB.h to WRDA.h
+ *                          Added SD_crt_file file
+ *                          Added clear rain totals CRT.TXT
+ *           
+ *           2026-02-19 RJB Release Major Update 
+ *                          Added lora wan options to config file
+ *                          Added SDU boot
+ *                          SD_ClearRainTotals(); // Clear from EEPROM if CRT.TXT exists
+ *                          Added INFO_Do() 
+ *                          Added vusb_get()
+ *                          Library Update and Changes
+ *                            Changed SD to SdFat 2.3.0
+ *                            Add Adafruit_ZeroDMA, LeafArduinoI2c, i2cArduino, i2cMultiArd
+ *                            MCCI LoRaWAN LMIC library 4.1.1 -> 5.0.1
+ *                            BMP280 2.6.2 -> 2.6.8
+ *                            BMP3XX 2.1.2 -> 2.1.6
+ *                            BusIO 1.11.6 -> 1.17.4
+ *                            GFX 1.11.1 -> 1.12.4
+ *                            HTU21DF 1.1.0 -> 1.1.2
+ *                            MCP9808 2.0.0 -> 2.0.2
+ *                            PM25_AQI 1.0.6 -> 2.0.0
+ *                            SHT31 2.2.0 -> 2.2.2
+ *                            SI1145 1.2.0 -> 1.2.2
+ *                            SSD1306 2.5.3-> 2.5.16
+ *                            Unified_Sensor 1.1.5 -> 1.1.15
+ *                            VEML7700 2.1.2 -> 2.1.6
+ *                            RTClib 2.0.3 -> 2.1.4                 
+ *                          Fixed bug in Wind_SampleDirection(), if AS5600 went offline we would stop doing wind. 
+ *                          Moved A4/A5 to OP1/OP2 
+ *                          Added OP2 option to read voltaic voltage
+ *                          Documentation Added               
  *                          
  *  Future Note - Support Chords and Google Big Query
  *    OBS.h line 212 will need to be modified
@@ -63,41 +93,6 @@
  *    cp lmic_project_config.h-us lmic_project_config.h
  *======================================================================================================================
  */
-
-/* 
- *=======================================================================================================================
- * Includes
- *=======================================================================================================================
- */
-// #include <SDU.h>  // Secure Digital Updater 
-
-#include <SPI.h>
-#include <Wire.h>
-#include <SD.h>
-#include <ctime>  // Provides the tm structure
-#include <WiFi101.h>
-#include <NTPClient.h>
-#include <WiFiUdp.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BMP280.h>
-#include <Adafruit_BME280.h>
-#include <Adafruit_BMP3XX.h>
-#include <Adafruit_HTU21DF.h>
-#include <Adafruit_MCP9808.h>
-#include <Adafruit_SI1145.h>
-#include <Adafruit_SHT31.h>
-#include <Adafruit_VEML7700.h>
-#include <Adafruit_PM25AQI.h>
-#include <Adafruit_EEPROM_I2C.h>
-#include <lmic.h>    // MCCI_LoRaWAN_LMIC_library
-#include <hal/hal.h>
-#include <RTClib.h>  // https://github.com/adafruit/RTClib FYI: this library has DateTime functions in it used by TimeManagement.h
-#include <i2cArduino.h>
-#include <LeafSens.h>
-#include <i2cMultiSm.h>
-#include <SparkFun_I2C_GPS_Arduino_Library.h>
-#include <TinyGPS++.h>
-
 
 /*
  * Required Libraries:
@@ -134,20 +129,7 @@
  * 
  * Board Label   Arduino  Info & Usage                   Grove Shield Connector   
  * ======================================================================================================================
- * BAT           VBAT Power
- * En            Control - Connect to ground to disable the 3.3v regulator
- * USB           VBUS Power
- * 13            D13      LED                            Not on Grove 
- * 12            D12      Serial Console Enable          Not on Grove
- * 11            D11                                     Not on Grove
- * 10            D10      Used by SD Card as CS          Grove D4  (Particle Pin D5)
- * 9             D9/A7    Voltage Battery Pin            Grove D4  (Particle Pin D4)
- * 6             D6       Connects to DIO1 for LoRaWAN   Grove D2  (Particle Pin D3)
- * 5             D5                                      Grove D2  (Particle Pin D2)
- * SCL           D3       i2c Clock                      Grove I2C_1
- * SDA           D2       i2c Data                       Grove I2C_1 
  * RST
- 
  * 3V            3v3 Power
  * ARef
  * GND
@@ -163,7 +145,21 @@
  * RX0           D0                                      Grove UART
  * TX1           D1                                      Grove UART 
  * io1           DIO1     Connects to D6 for LoRaWAN     Not on Grove (Particle Pin D9)
-   
+
+ * BAT           VBAT Power
+ * En            Control - Connect to ground to disable the 3.3v regulator
+ * USB           VBUS Power
+ * 13            D13      LED                            Not on Grove 
+ * 12            D12      Serial Console Enable          Not on Grove
+ * 11            D11                                     Not on Grove
+ * 10            D10      Used by SD Card as CS          Grove D4  (Particle Pin D5)
+ * 9             D9/A7    Voltage Battery Pin            Grove D4  (Particle Pin D4)
+ * 6             D6       Connects to DIO1 for LoRaWAN   Grove D2  (Particle Pin D3)
+ * 5             D5                                      Grove D2  (Particle Pin D2)
+ * SCL           D3       i2c Clock                      Grove I2C_1
+ * SDA           D2       i2c Data                       Grove I2C_1 
+ * RST
+
  * 
  * Not exposed on headers
  * D8 = LoRa NSS aka Chip Select CS
@@ -176,98 +172,60 @@
  * D2 = WiFI
  * ======================================================================================================================
  */
-#define REBOOT_PIN        A0  // Connect to WatchDog Trigger
-#define HEARTBEAT_PIN     A1  // Connect to WatchDog Heartbeat
-#define SCE_PIN           12  // Serial Console Enable Pin
-#define LED_PIN           LED_BUILTIN
-
-#define TM_VALID_YEAR_START     2024
-#define TM_VALID_YEAR_END       2033
 
 /*
  * ======================================================================================================================
- * System Status Bits used for report health of systems - 0 = OK
- * 
- * OFF =   SSB &= ~SSB_PWRON
- * ON =    SSB |= SSB_PWROFF
+ * Add SDUBoot Support for UPDATE.BIN on SD card
  * ======================================================================================================================
  */
-#define SSB_PWRON           0x1      // Set at power on, but cleared after first observation
-#define SSB_SD              0x2      // Set if SD missing at boot or other SD related issues
-#define SSB_RTC             0x4      // Set if RTC missing at boot
-#define SSB_OLED            0x8      // Set if OLED missing at boot, but cleared after first observation
-#define SSB_N2S             0x10     // Set when Need to Send observations exist
-#define SSB_FROM_N2S        0x20     // Set in transmitted N2S observation when finally transmitted
-#define SSB_AS5600          0x40     // Set if wind direction sensor AS5600 has issues                                                        
-#define SSB_BMX_1           0x80     // Set if Barometric Pressure & Altitude Sensor missing
-#define SSB_BMX_2           0x100    // Set if Barometric Pressure & Altitude Sensor missing
-#define SSB_HTU21DF         0x200    // Set if Humidity & Temp Sensor missing
-#define SSB_SI1145          0x400    // Set if UV index & IR & Visible Sensor missing
-#define SSB_MCP_1           0x800    // Set if Precision I2C Temperature Sensor missing
-#define SSB_MCP_2           0x1000   // Set if Precision I2C Temperature Sensor missing
-#define SSB_LORA            0x2000   // Set if LoRa Radio missing at startup
-#define SSB_SHT_1           0x4000   // Set if SHTX1 Sensor missing
-#define SSB_SHT_2           0x8000   // Set if SHTX2 Sensor missing
-#define SSB_HIH8            0x10000  // Set if HIH8000 Sensor missing
-#define SSB_GPS             0x20000  // Set if GPS Sensor missing
-#define SSB_PM25AQI         0x40000  // Set if PM25AQI Sensor missing
-#define SSB_EEPROM          0x80000  // Set if 24LC32 EEPROM missing
-#define SSB_TLW             0x100000 // Set if Tinovi Leaf Wetness I2C Sensor missing
-#define SSB_TSM             0x200000 // Set if Tinovi Soil Moisture I2C Sensor missing
-#define SSB_TMSM            0x400000 // Set if Tinovi MultiLevel Soil Moisture I2C Sensor missing
+#include "boot/SDU.h"
+
+ /* 
+ *=======================================================================================================================
+ * Local Includes
+ *=======================================================================================================================
+ */
+#include "include/ssbits.h"         // System Status Bits
+#include "include/qc.h"             // Quality Control Min and Max Sensor Values on Surface of the Earth
+#include "include/feather.h"        // Feather Related Board Functions and Definations
+#include "include/support.h"        // Support Functions
+#include "include/output.h"         // Serial and OLED Output Functions
+#include "include/cf.h"             // Configuration File Variables
+#include "include/eeprom.h"         // EEPROM Functions
+#include "include/sdcard.h"         // SD Card Functions
+#include "include/time.h"           // Time Management Functions
+#include "include/wifi.h"           // Wifi Functions
+#include "include/gps.h"            // GPS Support Functions
+#include "include/wrda.h"           // Wind Rain Distance Air Functions
+#include "include/mux.h"            // Mux Functions for mux connected sensors
+#include "include/lorawan.h"        // LoRaWAN Support Functions
+#include "include/sensors.h"        // I2C Based Sensor Functions
+#include "include/statmon.h"        // Station Monitor Functions
+#include "include/obs.h"            // Observation Functions
+#include "include/info.h"           // Info Functions
+#include "include/main.h"
 
 /*
  * ======================================================================================================================
  *  Globals
- * ======================================================================================================================Y
+ * ======================================================================================================================
  * 
  */
-unsigned long  SystemStatusBits = SSB_PWRON;  // Set bit 1 to 1 for initial value power on. Is set to 0 after first obs
-bool JustPoweredOn = true;                    // Used to clear SystemStatusBits set during power on device discovery
-bool TurnLedOff = false;                      // Set true in rain gauge interrupt
+bool JustPoweredOn = true;               // Used to clear SystemStatusBits set during power on device discovery
+bool TurnLedOff = false;                 // Set true in rain gauge interrupt
 
+char versioninfo[sizeof(VERSION_INFO)];  // allocate enough space including null terminator
+char msgbuf[MAX_MSGBUF_SIZE];            // Used to hold messages
+char *msgp;                              // Pointer to message text
+char Buffer32Bytes[32];                  // General storage
 
-int DSM_countdown = 1800; // Exit Display Station Monitor screen when reaches 0 - protects against burnt out pin or forgotten jumper
+unsigned long Time_of_obs = 0;           // unix time of observation
+unsigned long Time_of_next_obs = 0;      // time of next observation
 
-#define MAX_MSGBUF_SIZE   1024
-char msgbuf[MAX_MSGBUF_SIZE];   // Used to hold messages
-char *msgp;                     // Pointer to message text
-char Buffer32Bytes[32];         // General storage
-
-#define MAX_OBS_SIZE  1024
-char obsbuf[MAX_OBS_SIZE];      // Url that holds observations for HTTP GET
-char *obsp;                     // Pointer to obsbuf
-
+// Local
 int DailyRebootCountDownTimer;
+unsigned long nextinfo=0;                // Time of Next INFO transmit
 
-char DeviceID[25];              // A generated ID based on board's 128-bit serial number converted down to 96bits
-
-const char* pinNames[] = {
-  "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7",
-  "D8", "D9", "D10", "D11", "D12", "D13",
-  "A0", "A1", "A2", "A3", "A4", "A5"
-};
-
-/*
- * ======================================================================================================================
- *  Local Code Includes - Do not change the order of the below 
- * ======================================================================================================================
- */
-#include "QC.h"                   // Quality Control Min and Max Sensor Values on Surface of the Earth
-#include "SF.h"                   // Support Functions
-#include "Output.h"               // Output support for OLED and Serial Console
-#include "CF.h"                   // Configuration File Variables
-#include "TM.h"                   // Time Management
-#include "WiFi.h"                 // WiFi
-#include "GPS.h"                  // GPS Support
-#include "WRDB.h"                 // Wind Rain Distance Battery
-#include "EP.h"                   // EEPROM
-#include "LW.h"                   // LoRaWAN
-#include "SDC.h"                  // SD Card
-#include "Sensors.h"              // I2C Based Sensors
-#include "OBS.h"                  // Do Observation Processing
-#include "SM.h"                   // Station Monitor
-//#include "INFO.h"                 // Station Information
 
 /* 
  *=======================================================================================================================
@@ -308,13 +266,13 @@ int time_to_next_obs() {
 
 /*
  * ======================================================================================================================
- * HeartBeat() - 
+ * SystemReset() - reboot the feather
  * ======================================================================================================================
  */
-void HeartBeat() {
-  digitalWrite(HEARTBEAT_PIN, HIGH);
-  delay (250);
-  digitalWrite(HEARTBEAT_PIN, LOW);
+void SystemReset() {
+  // Resets the device, just like hitting the reset button or powering down and back up.
+  __disable_irq();     // Prevent pending interrupts from interfering.
+  NVIC_SystemReset();  // Trigger system reset [web:4]
 }
 
 /*
@@ -329,10 +287,21 @@ void DeviceReset() {
   digitalWrite(REBOOT_PIN, LOW);
   delay(2000); 
 
-  // May never get here if relay board / watchdog not connected.
+  // !!! May never get here when a relay board / watchdog is connected.
 
   // Resets the device, just like hitting the reset button or powering down and back up.
-  // System.reset();
+  SystemReset(); 
+}
+
+/*
+ * ======================================================================================================================
+ * HeartBeat() - 
+ * ======================================================================================================================
+ */
+void HeartBeat() {
+  digitalWrite(HEARTBEAT_PIN, HIGH);
+  delay (250);
+  digitalWrite(HEARTBEAT_PIN, LOW);
 }
 
 /*
@@ -343,14 +312,16 @@ void DeviceReset() {
 void BackGroundWork() {
   uint64_t OneSecondFromNow = millis() + 1000;
 
-  if (cf_ds_enable) {
-    DS_TakeReading();
-  }
+  if (!AQS_Enabled) {
+    if ((cf_op1==5)||(cf_op1==10)) {
+      DS_TakeReading();
+    }
     
-  if (AS5600_exists) {
-    Wind_TakeReading();
+    if (AS5600_exists) {
+      Wind_TakeReading();
+    }
   }
-    
+
   if (PM25AQI_exists) {
     pm25aqi_TakeReading();
   }
@@ -367,78 +338,16 @@ void BackGroundWork() {
       delay(50);
     }
     else {
+      // LoRaWAN - Process radio callbacks. If EV_TXCOMPLETE arrives, flag clears.
       os_runloop_once(); // Run as often as we can
     }
   }
 
-  if (TurnLedOff) {   // Turned on by rain gauge interrupt handler
-    digitalWrite(LED_PIN, LOW);  
-    TurnLedOff = false;
-  }
-}
-
-/* 
- *=======================================================================================================================
- * Wind_Distance_Air_Initialize()
- *=======================================================================================================================
- */
-void Wind_Distance_Air_Initialize() {
-  Output (F("WDA:Init()"));
-
-  // Clear windspeed counter
-  if (AS5600_exists) {
-    anemometer_interrupt_count = 0;
-    anemometer_interrupt_stime = millis();
-  
-    // Init default values.
-    wind.gust = 0.0;
-    wind.gust_direction = -1;
-    wind.bucket_idx = 0;
-  }
-
-  // Take N 1s samples of wind speed and direction and fill arrays with values.
-  if (AS5600_exists | PM25AQI_exists |cf_ds_enable) {
-    for (int i=0; i< WIND_READINGS; i++) {
-      BackGroundWork();
-    
-      if (SerialConsoleEnabled) Serial.print(".");  // Provide Serial Console some feedback as we loop and wait til next observation
-      OLED_spin();
+  if (!AQS_Enabled) {
+    if (TurnLedOff) {   // Turned on by rain gauge interrupt handler
+      digitalWrite(LED_PIN, LOW);  
+      TurnLedOff = false;
     }
-    if (SerialConsoleEnabled) Serial.println();  // Send a newline out to cleanup after all the periods we have been logging
-  }
-
-  // Now we have N readings we can output readings
-  
-  if (AS5600_exists) {
-    Wind_TakeReading();
-    float ws = Wind_SpeedAverage();
-    sprintf (Buffer32Bytes, "WS:%d.%02d WD:%d", (int)ws, (int)(ws*100)%100, Wind_DirectionVector());
-    Output (Buffer32Bytes);
-  }
-  
-  if (PM25AQI_exists) {
-    sprintf (Buffer32Bytes, "pm1s10:%d", pm25aqi_obs.max_s10);
-    Output (Buffer32Bytes);
-    
-    sprintf (Buffer32Bytes, "pm1s25:%d", pm25aqi_obs.max_s25);
-    Output (Buffer32Bytes); 
-    
-    sprintf (Buffer32Bytes, "pm1s100:%d", pm25aqi_obs.max_s100);
-    Output (Buffer32Bytes);
-    
-    sprintf (Buffer32Bytes, "pm1e10:%d", pm25aqi_obs.max_e10);
-    Output (Buffer32Bytes);
-    
-    sprintf (Buffer32Bytes, "pm1e25:%d", pm25aqi_obs.max_e25);
-    Output (Buffer32Bytes);
-    
-    sprintf (Buffer32Bytes, "pm1e100:%d", pm25aqi_obs.max_e100);
-    Output (Buffer32Bytes);
-  }
-
-  if (cf_ds_enable) {
-    sprintf (Buffer32Bytes, "DS:%d", DS_Median());
-    Output (Buffer32Bytes);
   }
 }
 
@@ -454,8 +363,9 @@ void setup() {
 
   analogReadResolution(12);  //Set all analog pins to 12bit resolution reads to match the SAMD21's ADC channels
 
-  Serial_write(COPYRIGHT);
-  Output (F(VERSION_INFO));
+  Serial_writeln(COPYRIGHT);
+  strcpy(versioninfo, VERSION_INFO);
+  Output (versioninfo);
 
   GetDeviceID();
   sprintf (msgbuf, "DevID:%s", DeviceID);
@@ -480,45 +390,65 @@ void setup() {
   
   SD_ReadConfigFile();
 
+  obs_interval_initialize();
+
+  INFO_Initialize();
+
   // Set Daily Reboot Timer
   DailyRebootCountDownTimer = cf_daily_reboot * 3600;
   
   rtc_initialize();
 
-  gps_initialize(true);  // true = print NotFound message
+  gps_initialize();  // if found gps_aquire() will run;
 
-  EEPROM_initialize();
-
-  obs_interval_initialize();
-
-  // Optipolar Hall Effect Sensor SS451A - Rain1 Gauge
-  if (cf_rg1_enable) {
-    raingauge1_interrupt_count = 0;
-    raingauge1_interrupt_stime = millis();
-    raingauge1_interrupt_ltime = 0;  // used to debounce the tip
-    attachInterrupt(RAINGAUGE1_IRQ_PIN, raingauge1_interrupt_handler, FALLING);
-    Output (F("RG1:ENABLED"));
-  }
-  else {
-    Output (F("RG1:NOT ENABLED"));
+  if (RTC_valid) {
+    // We now do a valid clock before we can initialize the EEPROM and make an observation
+    EEPROM_initialize();
   }
 
-  // Optipolar Hall Effect Sensor SS451A - Rain2 Gauge
-  if (cf_rg2_enable) {
-    raingauge2_interrupt_count = 0;
-    raingauge2_interrupt_stime = millis();
-    raingauge2_interrupt_ltime = 0;  // used to debounce the tip
-    attachInterrupt(RAINGAUGE2_IRQ_PIN, raingauge2_interrupt_handler, FALLING);
-    Output (F("RG2:ENABLED"));
-  }
-  else {
-    Output (F("RG2:NOT ENABLED"));
-  }
-  
-  DS_Initialize(); //Distance Sensor
+  // Check SD Card for file to determine if we are a Air Quality Station
+  OPT_AQS_Initialize(); // Sets AQS_Enabled to true
 
-  // I2C Sensor Init
-  as5600_initialize();
+  if (!AQS_Enabled) {
+    // Optipolar Hall Effect Sensor SS451A - Rain1 Gauge
+    if (cf_rg1_enable) {
+      raingauge1_interrupt_count = 0;
+      raingauge1_interrupt_stime = millis();
+      raingauge1_interrupt_ltime = 0;  // used to debounce the tip
+      attachInterrupt(RAINGAUGE1_IRQ_PIN, raingauge1_interrupt_handler, FALLING);
+      Output (F("RG1:ENABLED"));
+    }
+    else {
+      Output (F("RG1:NOT ENABLED"));
+    }
+
+    // Optipolar Hall Effect Sensor SS451A - Rain2 Gauge
+    if (cf_op1 == 2) {
+      raingauge2_interrupt_count = 0;
+      raingauge2_interrupt_stime = millis();
+      raingauge2_interrupt_ltime = 0;  // used to debounce the tip
+      attachInterrupt(RAINGAUGE2_IRQ_PIN, raingauge2_interrupt_handler, FALLING);
+      Output (F("RG2:ENABLED"));
+    }
+    else {
+      Output (F("RG2:NOT ENABLED"));
+    }
+
+    as5600_initialize();
+    if (AS5600_exists) {
+      Output (F("WS:Enabled"));
+      // Optipolar Hall Effect Sensor SS451A - Wind Speed
+      anemometer_interrupt_count = 0;
+      anemometer_interrupt_stime = millis();
+      attachInterrupt(ANEMOMETER_IRQ_PIN, anemometer_interrupt_handler, FALLING);
+    }
+  }
+
+  // Scan for i2c Devices and Sensors
+  mux_initialize();
+  if (!MUX_exists) {
+    tsm_initialize(); // Check main bus
+  }
   bmx_initialize();
   htu21d_initialize();
   mcp9808_initialize();
@@ -540,29 +470,24 @@ void setup() {
   hi_initialize();
   wbgt_initialize();
 
+  // See what network solution we have
   WiFi.setPins(8,7,4,2);
   if (WiFi_Feather()) {
-    Output(F("Feather:WiFi"));
+    Output(F("BOARD:WiFi"));
     WiFi_initialize();
+    (WiFi_valid) ? Output(F("WiFi Valid")) : Output(F("WiFi NotValid"));
   }
   else {
     // LoRaWAN Init
-    Output(F("Feather:LoRaWAN"));
+    Output(F("BOARD:LoRaWAN"));
     delay (10000);
     LW_initialize();
     if (!LW_valid) {
       Output(F("LW Disabled"));
     }
+    nextinfo = millis() + 60000; // Give LoRaWAN 1 minute time to Join if OTAA
   }
 
-  if (AS5600_exists) {
-    Output (F("WS:Enabled"));
-    // Optipolar Hall Effect Sensor SS451A - Wind Speed
-    anemometer_interrupt_count = 0;
-    anemometer_interrupt_stime = millis();
-    attachInterrupt(ANEMOMETER_IRQ_PIN, anemometer_interrupt_handler, FALLING);
-  }
-  
   Output (F("Start Main Loop"));
   Time_of_next_obs = millis() + 60000; // Give Network some time to connect
 
@@ -605,24 +530,25 @@ void loop() {
     }
 
     // Now two things can happen. User enters valid time or we get time from GPS
+
+
     rtc_readserial(); // check for serial input, validate for rtc, set rtc, report result
-    gps_initialize(false);  // This can set RTC_valid to true when valid GPS time obtained 
-                            // false = do not print NotFound message
+
+    if (!RTC_valid) {
+      gps_aquire();  // This can set RTC_valid to true when valid GPS time obtained 
+    }
 
     if (RTC_valid) {
-      Output(F("!!!!!!!!!!!!!!!!!!!"));
-      Output(F("!!! Press Reset !!!"));
-      Output(F("!!!!!!!!!!!!!!!!!!!")); 
-      while (true) {
-        delay (1000);
-      }     
+      Output(F("!!!!!!!!!!!!!!!!!"));
+      Output(F("!!! Rebooting !!!"));
+      Output(F("!!!!!!!!!!!!!!!!!")); 
+      delay(2000);
+      SystemReset(); // We don't use the watchdog to reboot. So soft reset to keep GPS and RTC powered.
     }
   }
     //Calibration mode
   else if (countdown && digitalRead(SCE_PIN) == LOW) { 
     // Every minute, Do observation (don't save to SD) and transmit
-    //I2C_Check_Sensors();
-    
     StationMonitor();
     
     // check for input sting, validate for rtc, set rtc, report result
@@ -631,15 +557,31 @@ void loop() {
     }
     
     countdown--;
-    delay (1000);
+    BackGroundWork();
   }
 
   // Normal Operation
   else {
-    // Send GPS info at boot before 1st OBS
-    if (gps_need2pub && gps_valid) {
-      gps_publish();
-      Time_of_next_obs += 30000; //delay observation by 30s, to provide time to get response from lora modem
+    // Delayed initialization. We need a valid clock before we can validate the EEPROM
+    if (eeprom_exists && !eeprom_valid) {
+      EEPROM_Validate();
+      EEPROM_Dump();
+      SD_ClearRainTotals(); // Clear if CRT.TXT exists
+    }
+
+    if (!WiFi_valid) {
+      // Make sure we are Joined of OTAA
+      if (cf_lw_mode == LORA_OTAA) {
+        if (LW_NeedToJoin()) {
+          // No netid and No join in progress so start a join
+          LMIC_startJoining();  // Triggers join process
+        }
+      }
+    }
+
+    // Send INFO
+    if (millis() >= nextinfo) {      // Upon power on this will be true with nextinfo being zero
+      INFO_Do();   // function will set nextinfo time for next call
     }
     
     // Perform an Observation, Write to SD, Send OBS
