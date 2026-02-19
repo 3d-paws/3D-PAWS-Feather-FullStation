@@ -10,7 +10,7 @@
 - Added lora wan options to config file
 - Added SDU boot
 - Clear rain totals from EEPROM at boot if CRT.TXT exists
-- Added INFO suppoty
+- Added INFO support
 - Library Update and Changes
   - Changed SD to SdFat 2.3.0
   - Add Adafruit_ZeroDMA, LeafArduinoI2c, i2cArduino, i2cMultiArd
