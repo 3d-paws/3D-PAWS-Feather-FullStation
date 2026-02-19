@@ -21,4 +21,4 @@
 | `/INFO.TXT`       | [Station info file.](INFO.md) Created / overwritten with every boot and rewritten every 6 hours from boot.             |
 | `/ELEV.TXT`       | Station elevation. File contents is elevation in meters.                                |
 | `/CRT.TXT`        | Clear rain totals from EEPROM at boot. Then file is deleted from SD card                |
-| `UPDATE.BIN`      | Once board is running 3D-PAWS code, update by placing a UPDATE.BIN on SD card and rebooting |
+| `/UPDATE.BIN`     | Once board is running 3D-PAWS code, update by placing a UPDATE.BIN on SD card and rebooting |
