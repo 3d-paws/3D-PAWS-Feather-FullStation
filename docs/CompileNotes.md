@@ -33,19 +33,6 @@ Below is an example of lmic_project_config.h for US Frequencies.
 //#define LMIC_USE_INTERRUPTS
  ```
 
-### Compiling for WiFi Board
-In file feather.h uncomment #define WIFI_BOARD
-```C
-// Uncomment this line when compiling for WiFi Feather
-// Comment out this line when compiling for LoRa Feather
-#define WIFI_BOARD
-```
-### Compiling for LoRaWAN Board
-In file feather.h comment out #define WIFI_BOARD
-```C
-// Uncomment this line when compiling for WiFi Feather
-// Comment out this line when compiling for LoRa Feather
-//#define WIFI_BOARD
-```
-
-To put the Feather in firmware down load mode, press the button on the board twice quickly.
+Notes:
+- The software will determine if you are using a Adafruit Feather WiFi or LoRa board.
+- To put the Feather in firmware down load mode, press the button on the board twice quickly.
