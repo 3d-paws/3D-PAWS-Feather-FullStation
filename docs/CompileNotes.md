@@ -3,7 +3,7 @@
 
 The code is provided at [Github - https://github.com/3d-paws/3D-PAWS-Feather-FullStation](https://github.com/3d-paws/3D-PAWS-Feather-FullStation)
 
-Libraries are provided and need to be copied to you Arduino's library directory.
+Libraries are provided and need to be copied to your Arduino's library directory.
 
 ### Setting Country Frequencies
 You will need to modify library MCCI_LoRaWAN_LMIC_library/project_config/lmic_project_config.h and configure for LoRa frequency plan for the country you are deploying in. This needs to be done prior to compiling. US and EU options have be set in country specific config files. You just need to copy these files to the actual config file.
