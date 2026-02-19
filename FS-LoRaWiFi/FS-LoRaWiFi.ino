@@ -56,7 +56,6 @@
  *                          Added SDU boot
  *                          SD_ClearRainTotals(); // Clear from EEPROM if CRT.TXT exists
  *                          Added INFO_Do() 
- *                          Added vusb_get()
  *                          Library Update and Changes
  *                            Changed SD to SdFat 2.3.0
  *                            Add Adafruit_ZeroDMA, LeafArduinoI2c, i2cArduino, i2cMultiArd
