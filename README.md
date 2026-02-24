@@ -35,20 +35,28 @@
 
 ## READMEs
 ### [Arduino Compile Notes](docs/CompileNotes.md)
-### [Configuration](docs/Configuration.md)
-### [LoRa Antenna Options](docs/LoRaAntennaOptions.md)
+### [Code Operation Notes](docs/CodeOperation.md)
+### [Configuration File Example](docs/Configuration.md)
+### [Connecting a Device to The Things Network (TTN)](docs/ConnectToTTN.md)
+### [Daily Reboot](docs/DailyReboot.md)
+### [INFO (Station Information) LoRaWAN](docs/INFO_LoRa.md)
+### [INFO (Station Information) WiFi](docs/INFO_WiFi.md)
 ### [Pin Mappings](docs/PinMappings.md)
 ### [SD Card Information](docs/SD.md)
-### [INFO (Station Information) WiFi](docs/INFO_WiFi.md)
-### [INFO (Station Information) LoRaWAN](docs/INFO_LoRa.md)
-### [WiFi Board Preparation](docs/WiFiBoardPrep.md)
-### [Connecting a Device to The Things Network (TTN)](docs/ConnectToTTN.md)
-### [Adding a Webhook to The Things Network (TTN)](docs/AddWebhookToTTN.md)
 ### [Sensor Information](docs/Sensors.md)
+### [Serial Monitor](docs/SerialMonitor.md)
 ### [System Health Bits (hth)](docs/SystemHealthBits.md)
 ### [WatchDog Board](docs/WatchDog.md)
-### [Daily Reboot](docs/DailyReboot.md)
-### [Serial Monitor](docs/SerialMonitor.md)
+### [WiFi Board Preparation](docs/WiFiBoardPrep.md)
+
+## LoRaWAN and The Things Network (TTN) Grouping of READMEs
+### [Arduino Compile Notes](docs/CompileNotes.md)
+### [Configuration](docs/Configuration.md)
+### [LoRa Antenna Options](docs/LoRaAntennaOptions.md)
+### [INFO (Station Information) LoRaWAN](docs/INFO_LoRa.md)
+### [Connecting a Device to The Things Network (TTN)](docs/ConnectToTTN.md)
+### [Adding a Webhook to The Things Network (TTN)](docs/AddWebhookToTTN.md)
 ### [Adding a Gateway to The Things Network (TTN)](docs/AddGatewayToTTN.md)
+
 
 
