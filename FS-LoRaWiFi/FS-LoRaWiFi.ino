@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-260219"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-260224"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
@@ -76,7 +76,9 @@
  *                          Fixed bug in Wind_SampleDirection(), if AS5600 went offline we would stop doing wind. 
  *                          Moved A4/A5 to OP1/OP2 
  *                          Added OP2 option to read voltaic voltage
- *                          Documentation Added               
+ *                          Documentation Added
+ *          2026-02-24 RJB  
+ *                          Setup RTC refresh every 4 hours               
  *                          
  *  Future Note - Support Chords and Google Big Query
  *    OBS.h line 212 will need to be modified
@@ -235,6 +237,7 @@ unsigned long Time_of_next_obs = 0;      // time of next observation
 
 // Local
 int DailyRebootCountDownTimer;
+unsigned long nextTimeRefresh=0;         // Time of Next Time refresh
 unsigned long nextinfo=0;                // Time of Next INFO transmit
 
 
@@ -406,7 +409,10 @@ void setup() {
   INFO_Initialize();
 
   // Set Daily Reboot Timer
-  DailyRebootCountDownTimer = cf_daily_reboot * 3600;
+  DailyRebootCountDownTimer = cf_daily_reboot * 3600; 
+
+  // Refresh Time 
+  nextTimeRefresh = millis() + (3600 * 4) * 1000; // 4 hours in the future
   
   rtc_initialize();
 
@@ -545,7 +551,8 @@ void loop() {
     rtc_readserial(); // check for serial input, validate for rtc, set rtc, report result
 
     if (!RTC_valid) {
-      gps_aquire();  // This can set RTC_valid to true when valid GPS time obtained 
+      rtc_refresh(); // Get time from WiFi / GPS
+      // gps_aquire();  // This can set RTC_valid to true when valid GPS time obtained 
     }
 
     if (RTC_valid) {
@@ -613,8 +620,14 @@ void loop() {
   }
 
   // Update the RTC clock from WiFi Network
-  if (false) {
-    rtc_refresh();
+  if (millis() >= nextTimeRefresh) {
+    rtc_refresh(); // This might take some time, we will correct 1 sec sampling after the call.
+    nextTimeRefresh = millis() + (3600 * 4) * 1000;
+
+    // Lets make sure we have 60 seconds of continous samples before the next reporting
+    if ((millis()+60000) < Time_of_next_obs) {
+      Time_of_next_obs = millis()+60000;
+    }
   }
 
   // Reboot Boot Countdown, only if cf_daily_reboot is set
