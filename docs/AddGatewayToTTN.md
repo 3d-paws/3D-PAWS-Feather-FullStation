@@ -73,7 +73,7 @@ Here is where the WiFi SSID and Pre-Shared Key (PSK) aka password is stored "/et
 - [RAK Firmware Download Center](https://downloads.rakwireless.com)
 
 ### Setup Notes
-The below is from the setup notes that were captured for the NSF/NCAR Marshall Field deployment. These notes have been sanitized for public consumption and may be out of date or inaccurate. This depomyment was our first and only deployment for this gateway.
+The below is from the setup notes that were captured for the NSF/NCAR Marshall Field deployment.
 
 [NSF/NCAR Marshall Field Test Site LoRaWAN TTN Gateway](https://ral.ucar.edu/projects/marshall-field-site)<br>
   <img src="images/TTNGatewayMarshallField.png" alt="RAK7289 Marshall Field LoRaWAN" width="500" height="400"><br>
@@ -102,7 +102,7 @@ The below is from the setup notes that were captured for the NSF/NCAR Marshall F
 ### Register Gateway at TTN
 - Follow the instruction at the top of this document. From RAK7289V2 OverviewWeb Page - You will need the EUI. 
 
-### No need to Create an API key at TTN under the Gateway you just created
+### No need to Create an API key at TTN under the Gateway you just created at TTN.
 The RAK 7289V2 is being setup as Basics Station (not Packet Forwarder). This setup uses certificate-based authentication (trust/cert/key files uploaded to WisGateOS on the gateway), which is standard for Basics Station LNS.
 
 ### LNS Server Certificate / LNS Trust
@@ -120,7 +120,7 @@ Save file as:  isrgrootx1.pem
 
 You will need the TTN Server URL and Port number obtained from TTN for LNS configuration on the gateway.
 
-Select on of the following
+Select on of the following:
 
 | Region/Cluster | LNS WSS URI (port 8887)                     |
 | -------------- | ------------------------------------------- |

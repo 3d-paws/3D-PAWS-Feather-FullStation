@@ -9,6 +9,9 @@
 #include "include/ssbits.h"
 #include "include/output.h"
 #include "include/support.h"
+#include "include/gps.h"
+#include "include/lorawan.h"
+#include "include/wifi.h"
 #include "include/main.h"
 #include "include/time.h"
 
@@ -55,6 +58,31 @@ void rtc_timestamp() {
   sprintf (timestamp, "%d-%02d-%02dT%02d:%02d:%02d", 
     now.year(), now.month(), now.day(),
     now.hour(), now.minute(), now.second());
+}
+
+/* 
+ *=======================================================================================================================
+ * rtc_refresh() - Get time from WiFi network or GPS and refresh the RTC
+ *=======================================================================================================================
+ */
+void rtc_refresh() {
+  // Update the RTC clock from WiFi Network
+  if (LW_valid) {
+    gps_aquire();  // This will set RTC_valid to true when valid GPS time obtained
+  }
+  else {
+    if (WiFi_valid) {
+      WiFi_UpdateTime();
+
+      // We still don't have time so try GPS if we have one.
+      if (!RTC_valid) {
+        gps_aquire();
+      }
+    }
+    else {
+      gps_aquire();
+    }
+  }
 }
 
 

@@ -1,4 +1,4 @@
-# Configuration
+# Configuration File Example
 [←Top](../README.md)<BR>
 
 On the SD card, create a file named CONFIG.TXT. If you are setting up Wi-Fi, you do not need to configure LoRaWAN, and vice versa. Under LoRaWAN configuration section you have the choices of configuring for OTAA (Over The Air Authentication) or ABP (Authentication By Personalization). The selection of which is set by "lw_mode" seting of (0=OTAA, 1=ABP).

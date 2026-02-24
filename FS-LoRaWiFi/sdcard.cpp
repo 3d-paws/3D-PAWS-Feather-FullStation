@@ -22,7 +22,7 @@ File SD_fp;
 char SD_obsdir[] = "/OBS";                  // Observations stored in this directory. Created at power on if not exist
 bool SD_exists = false;                     // Set to true if SD card found at boot
 char SD_n2s_file[] = "N2SOBS.TXT";          // Need To Send Observation file
-uint32_t SD_n2s_max_filesz = 512 * 60 * 24; // Keep a little over 1 day. When it fills, it is deleted and we start over.
+uint32_t SD_n2s_max_filesz = 512 * 60 * 48; // Keep a little over 1 day. When it fills, it is deleted and we start over.
 char SD_crt_file[] = "CRT.TXT";             // if file exists clear rain totals and delete file
 char SD_OPTAQS_FILE[] ="OPTAQS.TXT";        // Enable Air Quality Station, Use OP2_PN to contril sensor
 

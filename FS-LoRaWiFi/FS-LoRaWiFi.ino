@@ -90,6 +90,18 @@
  *  Compile for US Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
  *    cp lmic_project_config.h-us lmic_project_config.h
+ * 
+ *  Thoughts - If were to add a RFM95 LoRa module to a Feather M0 WiFi board, we would need to configure 
+ *  SPI1 in the variant.h.  Perhaps pins assignments would be:
+ *   Feather M0 SPI1 variant.h
+ *    #define PIN_SPI1_MOSI (5u)   // D5
+ *    #define PIN_SPI1_SCK  (6u)   // D6  
+ *    #define PIN_SPI1_MISO (14u)  // A4
+ *    #define PERIPH_SPI1   sercom1
+ * 
+ *  Also need to map the rest of the RFM95 Pins to see if we can make it work.
+ * 
+ * 
  *======================================================================================================================
  */
 
@@ -530,7 +542,6 @@ void loop() {
 
     // Now two things can happen. User enters valid time or we get time from GPS
 
-
     rtc_readserial(); // check for serial input, validate for rtc, set rtc, report result
 
     if (!RTC_valid) {
@@ -599,6 +610,11 @@ void loop() {
       Time_of_next_obs = time_to_next_obs();   
       JPO_ClearBits(); // Clear status bits from boot after we log our first observations
     }
+  }
+
+  // Update the RTC clock from WiFi Network
+  if (false) {
+    rtc_refresh();
   }
 
   // Reboot Boot Countdown, only if cf_daily_reboot is set

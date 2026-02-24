@@ -125,15 +125,26 @@ void WiFi_UpdateTime() {
 
     DateTime dt_networktime = DateTime(networktime);
     if ((dt_networktime.year() >= TM_VALID_YEAR_START) && (dt_networktime.year() <= TM_VALID_YEAR_END)) {
+      Output("WiFi NTP->RTC SET");
       rtc.adjust(dt_networktime);
-      Output("WiFi RTC SET");
-      rtc_timestamp();
-      sprintf (msgbuf, "%sW", timestamp);
-      Output (msgbuf);
-      RTC_valid = true;
+
+      // Lets check the RTC after setting
+      now = rtc.now();
+      if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
+       
+        rtc_timestamp();
+        sprintf (msgbuf, "%sW", timestamp);
+        Output (msgbuf);
+        RTC_valid = true;
+        Output("RTC:VALID");
+      }
+      else {
+        RTC_valid = false;
+        Output ("RTC:NOT VALID");
+      }
     }
     else {
-      Output("WiFi RTC ERROR");
+      Output("WiFi NTP BAD");
     }
   }
 }

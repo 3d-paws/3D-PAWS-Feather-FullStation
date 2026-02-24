@@ -159,6 +159,8 @@ void gps_aquire() {
         gps.time.second()
       ));
       Output("GPS->RTC Set");
+
+      // Lets check the RTC after setting
       now = rtc.now();
       if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
         RTC_valid = true;
@@ -167,6 +169,7 @@ void gps_aquire() {
       else {
         RTC_valid = false;
         Output ("RTC:NOT VALID");
+
       }
 
       gps_lat  = gps.location.lat();
