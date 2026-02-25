@@ -39,6 +39,7 @@
 ### [Configuration File Example](docs/Configuration.md)
 ### [Connecting a Device to The Things Network (TTN)](docs/ConnectToTTN.md)
 ### [Daily Reboot](docs/DailyReboot.md)
+### [GPS Module](docs/GPSModule.md)
 ### [INFO (Station Information) LoRaWAN](docs/INFO_LoRa.md)
 ### [INFO (Station Information) WiFi](docs/INFO_WiFi.md)
 ### [Pin Mappings](docs/PinMappings.md)
@@ -48,7 +49,6 @@
 ### [System Health Bits (hth)](docs/SystemHealthBits.md)
 ### [WatchDog Board](docs/WatchDog.md)
 ### [WiFi Board Preparation](docs/WiFiBoardPrep.md)
-### [GPS Module](docs/GPSModule.md)
 
 ## LoRaWAN and The Things Network (TTN) Grouping of READMEs
 ### [Arduino Compile Notes](docs/CompileNotes.md)
