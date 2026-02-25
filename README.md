@@ -48,6 +48,7 @@
 ### [System Health Bits (hth)](docs/SystemHealthBits.md)
 ### [WatchDog Board](docs/WatchDog.md)
 ### [WiFi Board Preparation](docs/WiFiBoardPrep.md)
+### [GPS Module](docs/GPSModule.md)
 
 ## LoRaWAN and The Things Network (TTN) Grouping of READMEs
 ### [Arduino Compile Notes](docs/CompileNotes.md)

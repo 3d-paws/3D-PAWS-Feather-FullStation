@@ -395,7 +395,7 @@ void LW_Show_FreqPlan() {
     if (LMIC.channelMap & (1U << i)) {  // Direct bit test
 #elif defined(CFG_us915) || defined(CFG_au915) || defined(CFG_as923)
   // MCCI LMIC US915: ARRAY u2_t channelMap[]
-  maxCh = 72 + MAX_XCHANNELS;
+  maxCh = 80;  // 72 fixed + 8 extra channels
   for (int i = 0; i < maxCh; i++) {
     if (LMIC.channelMap[i >> 4] & (1U << (i & 15))) {  // Array bitmask
 #else
@@ -403,8 +403,13 @@ void LW_Show_FreqPlan() {
   return;
 #endif
 
-      // Common frequency formatting (both regions)
+#if defined(CFG_eu868) || defined(CFG_in866) || defined(CFG_kr920)
       uint32_t freq100Hz = LMIC.channelFreq[i];  // Hz * 100
+#else
+      // US915: 902.3-914.9 MHz (channels 0-71), skip X-channels
+      if (i >= 72) continue;
+      uint32_t freq100Hz = 902300000UL + (i * 200000UL);  // 902.3 + i*0.2 MHz
+#endif
       uint16_t mhz = freq100Hz / 1000000;        // MHz (902)
       uint16_t khz = (freq100Hz / 10000) % 100;  // kHz fraction (30)
 
