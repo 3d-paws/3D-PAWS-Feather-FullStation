@@ -38,7 +38,7 @@ char *obsp;                     // Pointer to obsbuf
 
 /*
  * ======================================================================================================================
- * SendMsg() - Log Observation or Information, return result status
+ * SendMsg() - Send Observation or Information, return result status
  * ======================================================================================================================
  */
 int SendMsg(char *msg)
@@ -68,7 +68,6 @@ int SendMsg(char *msg)
     Output("No Valid Network");
     return (0);   
   }
-  
 }
 
 /*
@@ -332,7 +331,7 @@ void OBS_Take() {
     }
 
     // Rain Gauge 2 - Each tip is 0.2mm of rain
-    if (cf_op1 == 2) {
+    if (cf_op1 == OP1_STATE_RAIN) {
       rg2ds = (millis()-raingauge2_interrupt_stime)/1000;  // seconds since last rain gauge observation logged
       rg2 = raingauge2_interrupt_count * 0.2;
       raingauge2_interrupt_count = 0;
@@ -342,7 +341,7 @@ void OBS_Take() {
       rg2 = (isnan(rg2) || (rg2 < QC_MIN_RG) || (rg2 > (((float)rg2ds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rg2;
     }
 
-    if (cf_rg1_enable || (cf_op1 == 2)) {
+    if (cf_rg1_enable || (cf_op1 == OP1_STATE_RAIN)) {
       EEPROM_UpdateRainTotals(rg1, rg2);
     }
  
@@ -365,7 +364,7 @@ void OBS_Take() {
     }
 
     // Rain Gauge 2
-    if (cf_op1 == 2) {
+    if (cf_op1 == OP1_STATE_RAIN) {
       strcpy (obs.sensor[sidx].id, "rg2");
       obs.sensor[sidx].type = F_OBS;
       obs.sensor[sidx].f_obs = rg2;
@@ -382,7 +381,7 @@ void OBS_Take() {
       obs.sensor[sidx++].inuse = true;
     }
 
-    if (cf_op1 == 1) {
+    if (cf_op1 == OP1_STATE_RAW) {
       // OP1 Raw
       strcpy (obs.sensor[sidx].id, "op1r");
       obs.sensor[sidx].type = F_OBS;
@@ -390,7 +389,7 @@ void OBS_Take() {
       obs.sensor[sidx++].inuse = true;
     }
 
-    if ((cf_op1 == 5) || (cf_op1 == 10)) {
+    if ((cf_op1 == OP1_STATE_DIST_5M) || (cf_op1 == OP1_STATE_DIST_10M)) {
       float ds_median, ds_median_raw;
     
       ds_median = ds_median_raw = DS_Median();
@@ -409,7 +408,7 @@ void OBS_Take() {
       obs.sensor[sidx++].inuse = true;
     }
 
-    if (cf_op2 == 1) {
+    if (cf_op2 == OP2_STATE_RAW) {
       // OP2 Raw
       strcpy (obs.sensor[sidx].id, "op2r");
       obs.sensor[sidx].type = F_OBS;
@@ -417,11 +416,17 @@ void OBS_Take() {
       obs.sensor[sidx++].inuse = true;
     }
 
-    if (cf_op2 == 2) {
+    if (cf_op2 == OP2_STATE_VOLTAIC) {
       // OP2 Voltaic Battery Voltage
+      float vbv = VoltaicVoltage(OP2_PIN);
       strcpy (obs.sensor[sidx].id, "vbv");
       obs.sensor[sidx].type = F_OBS;
-      obs.sensor[sidx].f_obs = VoltaicVoltage(OP2_PIN);
+      obs.sensor[sidx].f_obs = vbv;
+      obs.sensor[sidx++].inuse = true;
+
+      strcpy (obs.sensor[sidx].id, "vpc");
+      obs.sensor[sidx].type = F_OBS;
+      obs.sensor[sidx].f_obs = VoltaicPercent(vbv);
       obs.sensor[sidx++].inuse = true;
     }
 
@@ -457,8 +462,6 @@ void OBS_Take() {
       obs.sensor[sidx].type = I_OBS;
       obs.sensor[sidx].i_obs = wd;
       obs.sensor[sidx++].inuse = true;
-
-      Wind_ClearSampleCount(); // Clear Counter, Counter maintain how many samples since last obs sent
     }
   }
 
@@ -472,24 +475,6 @@ void OBS_Take() {
     else {
       pm25aqi_Produce_1m_Average();
     }
-
-    // Standard Particle PM1.0 concentration unit µg m3
-    strcpy (obs.sensor[sidx].id, "pm1s10");
-    obs.sensor[sidx].type = I_OBS;
-    obs.sensor[sidx].i_obs = pm25aqi_obs.s10;
-    obs.sensor[sidx++].inuse = true;
-
-    // Standard Particle PM2.5 concentration unit µg m3
-    strcpy (obs.sensor[sidx].id, "pm1s25");
-    obs.sensor[sidx].type = I_OBS;
-    obs.sensor[sidx].i_obs = pm25aqi_obs.s25;
-    obs.sensor[sidx++].inuse = true;
-
-    // Standard Particle PM10.0 concentration unit µg m3
-    strcpy (obs.sensor[sidx].id, "pm1s100");
-    obs.sensor[sidx].type = I_OBS;
-    obs.sensor[sidx].i_obs = pm25aqi_obs.s100;
-    obs.sensor[sidx++].inuse = true;
 
     // Atmospheric Environmental PM1.0 concentration unit µg m3
     strcpy (obs.sensor[sidx].id, "pm1e10");
@@ -895,7 +880,7 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
-
+#ifdef NOWAY
   if (VEML7700_exists) {
     float lux = veml.readLux(VEML_LUX_AUTO);
     lux = (isnan(lux) || (lux < QC_MIN_VLX)  || (lux > QC_MAX_VLX))  ? QC_ERR_VLX  : lux;
@@ -906,6 +891,7 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = lux;
     obs.sensor[sidx++].inuse = true;
   }
+#endif
 
   if (BLX_exists) {
     float lux=blx_takereading();
@@ -977,55 +963,6 @@ void OBS_Take() {
     obs.sensor[sidx].f_obs = (float) t;
     obs.sensor[sidx++].inuse = true;
   }
-  
-    // Tinovi Multi Level Soil Moisture
-  if (TMSM_exists) {
-    soil_ret_t multi;
-    float t;
-
-    tmsm.newReading();
-    delay(100);
-    tmsm.getData(&multi);
-
-    strcpy (obs.sensor[sidx].id, "tmsms1");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) multi.vwc[0];
-    obs.sensor[sidx++].inuse = true;
-
-    strcpy (obs.sensor[sidx].id, "tmsms2");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) multi.vwc[1];
-    obs.sensor[sidx++].inuse = true;
-
-    strcpy (obs.sensor[sidx].id, "tmsms3");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) multi.vwc[2];
-    obs.sensor[sidx++].inuse = true;
-
-    strcpy (obs.sensor[sidx].id, "tmsms4");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) multi.vwc[3];
-    obs.sensor[sidx++].inuse = true;
-
-    strcpy (obs.sensor[sidx].id, "tmsms5");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) multi.vwc[4];
-    obs.sensor[sidx++].inuse = true;
-    
-    t = multi.temp[0];
-    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
-    strcpy (obs.sensor[sidx].id, "tmsmt1");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) t;
-    obs.sensor[sidx++].inuse = true;
-
-    t = multi.temp[1];
-    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
-    strcpy (obs.sensor[sidx].id, "tmsmt2");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) t;
-    obs.sensor[sidx++].inuse = true;
-  } 
 
   // Tinovi Soil Moisture
   mux_obs_do(sidx);

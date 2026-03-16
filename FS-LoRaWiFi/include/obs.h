@@ -9,7 +9,6 @@
 #define MAX_SENSORS         48
 #define MAX_OBS_SIZE  1024
 
-
 typedef enum {
   F_OBS, 
   I_OBS, 

@@ -83,8 +83,12 @@ void INFO_Do_WiFi() {
   sprintf (msg+strlen(msg), ",\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0WiFi\"", // Adafruit Feather M0 WiFi
     timestamp, DeviceID);
 
-  sprintf (msg+strlen(msg), ",\"ver\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d",
-    versioninfo, (int)vbat, (int)(vbat*100)%100, SystemStatusBits, cf_elevation);
+  sprintf (msg+strlen(msg), ",\"ver\":\"%s\",\"lwr\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d",
+    versioninfo, 
+    LW_Region(), // LW Region: EU868 US915 ...
+                 // Even though we are running on a WiFi board. Good to know what Region we are compiled for.
+    (int)vbat, (int)(vbat*100)%100, 
+    SystemStatusBits, cf_elevation);
 
   // Log Server Information and Chords Apikey and Id
   sprintf (msg+strlen(msg), ",\"ls\":\"%s\",\"lsp\":%d,\"lsurl\":\"%s\",\"lsapi\":\"%s\",\"lsid\":%d",
@@ -216,10 +220,12 @@ void INFO_Do_WiFi() {
     sprintf (msg+strlen(msg), "%sSI", comma);
     comma=",";
   }
+#ifdef NOWAY
   if (VEML7700_exists) {
     sprintf (msg+strlen(msg), "%sVEML", comma);
     comma=",";
   }
+#endif
   if (BLX_exists) {
     sprintf (msg+strlen(msg), "%sBLX", comma);
     comma=",";
@@ -237,10 +243,6 @@ void INFO_Do_WiFi() {
     sprintf (msg+strlen(msg), "%sTSM", comma);
     comma=",";
   }
-  if (TMSM_exists) {
-    sprintf (msg+strlen(msg), "%sTMSM", comma);
-    comma=",";
-  } 
   if (HI_exists) {
     sprintf (msg+strlen(msg), "%sHI", comma);
     comma=",";
@@ -265,29 +267,29 @@ void INFO_Do_WiFi() {
     sprintf (msg+strlen(msg), "%sRG1(%s)", comma, pinNames[RAINGAUGE1_IRQ_PIN]); 
     comma=",";
   } 
-  if (cf_op1 == 1) {
+  if (cf_op1 == OP1_STATE_RAW) {
     sprintf (msg+strlen(msg), "%sOP1R(%s)", comma, pinNames[OP1_PIN]);
     comma=",";
   } 
-  if (cf_op1 == 2) {
+  if (cf_op1 == OP1_STATE_RAIN) {
     sprintf (msg+strlen(msg), "%sRG2(%s)", comma, pinNames[RAINGAUGE2_IRQ_PIN]);
     comma=",";
   } 
-  if (cf_op1 == 5) {
+  if (cf_op1 == OP1_STATE_DIST_5M) {
     sprintf (msg+strlen(msg), "%s5MDIST(%s,%d)", 
       comma, pinNames[DISTANCE_GAUGE_PIN], cf_ds_baseline);
     comma=",";
   } 
-  if (cf_op1 == 10) {
+  if (cf_op1 == OP1_STATE_DIST_10M) {
     sprintf (msg+strlen(msg), "%s10MDIST(%s,%d)", 
       comma, pinNames[DISTANCE_GAUGE_PIN], cf_ds_baseline);
     comma=",";
   }
-  if (cf_op2 == 1) {
+  if (cf_op2 == OP2_STATE_RAW) {
     sprintf (msg+strlen(msg), "%sOP2R(%s)", comma, pinNames[OP2_PIN]);
     comma=",";
   }
-  if (cf_op2 == 2) {
+  if (cf_op2 == OP2_STATE_VOLTAIC) {
     sprintf (msg+strlen(msg), "%sVBV(%s)", comma, pinNames[OP2_PIN]);
     comma=",";
   } 
@@ -445,7 +447,7 @@ void INFO_Do_LoRaWAN() {
     LW_Region(), 
     (cf_lw_mode) ? "ABP" : "OTAA",
     cf_lw_sf,
-    cf_lw_txpw);
+    cf_lw_txpwr);
 
   // Discovered Device List
   comma="";
@@ -598,10 +600,12 @@ void INFO_Do_LoRaWAN() {
     sprintf (msg+strlen(msg), "%sSI", comma);
     comma=",";
   }
+#ifdef NOWAY
   if (VEML7700_exists) {
     sprintf (msg+strlen(msg), "%sVEML", comma);
     comma=",";
   }
+#endif
   if (BLX_exists) {
     sprintf (msg+strlen(msg), "%sBLX", comma);
     comma=",";
@@ -619,10 +623,6 @@ void INFO_Do_LoRaWAN() {
     sprintf (msg+strlen(msg), "%sTSM", comma);
     comma=",";
   }
-  if (TMSM_exists) {
-    sprintf (msg+strlen(msg), "%sTMSM", comma);
-    comma=",";
-  } 
   if (HI_exists) {
     sprintf (msg+strlen(msg), "%sHI", comma);
     comma=",";
@@ -647,29 +647,29 @@ void INFO_Do_LoRaWAN() {
     sprintf (msg+strlen(msg), "%sRG1(%s)", comma, pinNames[RAINGAUGE1_IRQ_PIN]); 
     comma=",";
   }
-  if (cf_op1 == 1) {
+  if (cf_op1 == OP1_STATE_RAW) {
     sprintf (msg+strlen(msg), "%sOP1R(%s)", comma, pinNames[OP1_PIN]);
     comma=",";
   } 
-  if (cf_op1 == 2) {
+  if (cf_op1 == OP1_STATE_RAIN) {
     sprintf (msg+strlen(msg), "%sRG2(%s)", comma, pinNames[RAINGAUGE2_IRQ_PIN]);
     comma=",";
   } 
-  if (cf_op1 == 5) {
+  if (cf_op1 == OP1_STATE_DIST_5M) {
     sprintf (msg+strlen(msg), "%s5MDIST(%s,%d)", 
       comma, pinNames[DISTANCE_GAUGE_PIN], cf_ds_baseline);
     comma=",";
   } 
-  if (cf_op1 == 10) {
+  if (cf_op1 == OP1_STATE_DIST_10M) {
     sprintf (msg+strlen(msg), "%s10MDIST(%s,%d)", 
       comma, pinNames[DISTANCE_GAUGE_PIN], cf_ds_baseline);
     comma=",";
   }
-  if (cf_op2 == 1) {
+  if (cf_op2 == OP2_STATE_RAW) {
     sprintf (msg+strlen(msg), "%sOP2R(%s)", comma, pinNames[OP2_PIN]);
     comma=",";
   }
-  if (cf_op2 == 2) {
+  if (cf_op2 == OP2_STATE_VOLTAIC) {
     sprintf (msg+strlen(msg), "%sVBV(%s)", comma, pinNames[OP2_PIN]);
     comma=",";
   } 

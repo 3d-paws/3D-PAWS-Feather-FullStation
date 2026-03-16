@@ -585,10 +585,10 @@ void LW_initialize() {
   */
   // Optional: Set initial Data Rate (DR) (server will override) unless LMIC_setAdrMode(0);
   if (cf_lw_sf == 8) {
-    LMIC_setDrTxpow(DR_SF8, cf_lw_txpw);
+    LMIC_setDrTxpow(DR_SF8, cf_lw_txpwr);
   }
   else { // Default
-    LMIC_setDrTxpow(DR_SF7, cf_lw_txpw);
+    LMIC_setDrTxpow(DR_SF7, cf_lw_txpwr);
   }
 
   // For the below defines see: MCCI_LoRaWAN_LMIC_library/project_config/lmic_project_config.h

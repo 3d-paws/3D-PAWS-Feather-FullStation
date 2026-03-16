@@ -1,7 +1,12 @@
 # Connecting a Device to The Things Network (TTN)
 [←Top](../README.md)<BR>
-The below describes how to connect a Feather Fullstaion LoRaWAN board to The Things Network (TTN)<br>
-These instructions assume
+The below describes how to connect a Feather Fullstaion LoRaWAN board to The Things Network (TTN).<BR>
+
+Note: Another option that could be used inplace of TTN is [ChirpStack](https://www.chirpstack.io/docs/). 
+- ChirpStack is an open-source LoRaWAN Network Server which can be used to setup private or public LoRaWAN networks. 
+- We my look into this in the future. But for now it is TTN.
+
+These TTN instructions assume:
 - You have an account with TTN.
 - You know how to login and access the US or EU consoles.
 - You have an Application already defined at TTN under the console region.

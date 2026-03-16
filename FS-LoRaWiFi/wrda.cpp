@@ -378,15 +378,6 @@ void Wind_GustUpdate() {
 
 /*
  * ======================================================================================================================
- * Wind_ClearSampleCount()    
- * ======================================================================================================================
- */
-void Wind_ClearSampleCount() {
-  wind.sample_count = 0;
-}
-
-/*
- * ======================================================================================================================
  * Wind_TakeReading() - Wind direction and speed, measure every second             
  * ======================================================================================================================
  */
@@ -394,7 +385,6 @@ void Wind_TakeReading() {
   wind.bucket[wind.bucket_idx].direction = (int) Wind_SampleDirection();
   wind.bucket[wind.bucket_idx].speed = Wind_SampleSpeed();
   wind.bucket_idx = (++wind.bucket_idx) % WIND_READINGS; // Advance bucket index for next reading
-  wind.sample_count++;
 }
 
 /* 
@@ -432,14 +422,21 @@ float Pin_ReadAvg(int pin) {
 
 /* 
  *=======================================================================================================================
- * VoltaicVoltage() - Breakout the UCB-C 
+ * VoltaicVoltage() - Breakout the Voltaic Cell Voltage from the UCB-C 
+ * 
+ * Analog A0-A6	0-3.6V	ADC input range
+ * 
+ * Info: https://blog.voltaicsystems.com/reading-charge-level-of-voltaic-usb-battery-packs/ for  D+ 
+ * Info: https://blog.voltaicsystems.com/updated-usb-c-pd-and-always-on-for-v25-v50-v75-batteries/ for SBU
  * 
  * Newer V25/V50/V75 firmware (post-2023) moved this cell voltage signal to SBU pins (A8/B8) on USB-C for better USB 
  * compliance. Older units used D+. Which conflicted with data transfer. 
  * 
  * Using both A8/B8 SBU pins ensures compatibility regardless of USB-C cable orientation (flipped or not)
  * 
- * The expected voltage range on Voltaic V25's monitor pins (D+ on older firmware, SBU1 (A8) and SBU2 (B8) on newer) is 1.6V to 2.1V
+ * Voltaic’s docs say the pack reports half the cell voltage.
+ * The expected voltage range on Voltaic V25's monitor pins (D+ on older firmware, 
+ *   SBU1 (A8) and SBU2 (B8) on newer) is 1.6V to 2.1V
  *=======================================================================================================================
  */
 float VoltaicVoltage(int pin) {
@@ -449,8 +446,30 @@ float VoltaicVoltage(int pin) {
     totalValue += analogRead(pin);
     delay(10);  // Short delay between readings
   }
-  float voltage = (3.3 * (totalValue / numReadings)) / 1023.0; 
+  float voltage = (3.3 * (totalValue / (float)numReadings)) / 4095.0; 
   return(voltage);
+}
+
+/*
+ *=======================================================================================================================
+ * VoltaicVoltage() - Voltaic Cell Percent Charge 
+ *   Full charge: 4.2V cell → 2.1V on SBU (100%)  
+ *   75% charge:  ~3.9V cell → ~1.95V on SBU  
+ *   50% charge:  ~3.7V cell → ~1.85V on SBU  
+ *   25% charge:  ~3.4V cell → ~1.7V on SBU  
+ *   Empty:       3.2V cell → 1.6V on SBU (0%)
+ *=======================================================================================================================
+ */
+float VoltaicPercent(float half_cell_voltage) {
+  float cellV = half_cell_voltage * 2.0;
+  
+  if (cellV >= 4.20) return 100.0;
+  if (cellV <= 3.20) return 0.0;
+  
+  // Simple linear approximation over Voltaic's specified 3.2-4.2V range
+  // (Li-ion curve is flat in middle, so voltage alone is rough anyway)
+  float percent = ((cellV - 3.20) / (4.20 - 3.20)) * 100.0;
+  return constrain(percent, 0, 100);
 }
 
 /*
@@ -497,7 +516,7 @@ void Wind_Distance_Air_Initialize() {
   }
 
   // Take N 1s samples of wind speed and direction and fill arrays with values.
-  if (AS5600_exists | PM25AQI_exists | (cf_op1 == 5) || (cf_op1 == 10)) {
+  if (AS5600_exists || PM25AQI_exists || (cf_op1 == OP1_STATE_DIST_5M) || (cf_op1 == OP1_STATE_DIST_10M)) {
     for (int i=0; i< WIND_READINGS; i++) {
       BackGroundWork(); // AirQ, Wind, Dist polls
     
@@ -519,15 +538,6 @@ void Wind_Distance_Air_Initialize() {
   }
   
   if (PM25AQI_exists) {
-    sprintf (Buffer32Bytes, "pm1s10:%d", pm25aqi_obs.s10);
-    Output (Buffer32Bytes);
-    
-    sprintf (Buffer32Bytes, "pm1s25:%d", pm25aqi_obs.s25);
-    Output (Buffer32Bytes); 
-    
-    sprintf (Buffer32Bytes, "pm1s100:%d", pm25aqi_obs.s100);
-    Output (Buffer32Bytes);
-    
     sprintf (Buffer32Bytes, "pm1e10:%d", pm25aqi_obs.e10);
     Output (Buffer32Bytes);
     
@@ -538,7 +548,7 @@ void Wind_Distance_Air_Initialize() {
     Output (Buffer32Bytes);
   }
 
-  if ((cf_op1 == 5) || (cf_op1 == 10)) {
+  if ((cf_op1 == OP1_STATE_DIST_5M) || (cf_op1 == OP1_STATE_DIST_10M)) {
     sprintf (Buffer32Bytes, "DS:%d", DS_Median());
     Output (Buffer32Bytes);
   }

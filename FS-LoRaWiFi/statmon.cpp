@@ -65,7 +65,7 @@ void StationMonitor() {
     sprintf (msgbuf+strlen(msgbuf), " R1:ND");
   }
   
-  if (cf_op1 == 2) {
+  if (cf_op1 == OP1_STATE_RAIN) {
     sprintf (msgbuf+strlen(msgbuf), " 2:%02d", raingauge2_interrupt_count);
     raingauge2_interrupt_count = 0;
     raingauge2_interrupt_stime = millis();
@@ -84,7 +84,7 @@ void StationMonitor() {
   // =================================================================
   memset(msgbuf, 0, sizeof(msgbuf));
 
-  if ((cf_op1 == 5) || (cf_op1 == 10)) {
+  if ((cf_op1 == OP1_STATE_DIST_5M) || (cf_op1 == OP1_STATE_DIST_10M)) {
     float ds = DS_Median();
     sprintf (msgbuf+strlen(msgbuf), "D:%4d %d", DS_Median(), anemometer_interrupt_count);
   }
@@ -154,24 +154,24 @@ void StationMonitor() {
       switch (BMX_2_chip_id) {
         case BMP280_CHIP_ID :
           bmx_pressure = bmp2.readPressure()/100.0F;           // bmxp1
-          bmx_temp = bmp1.readTemperature();                   // bmxt1
+          bmx_temp = bmp2.readTemperature();                   // bmxt1
           break;
         
         case BME280_BMP390_CHIP_ID :
           if (BMX_2_chip_id == BME280_BMP390_CHIP_ID) {
             bmx_pressure = bme2.readPressure()/100.0F;           // bmxp1
-            bmx_temp = bme1.readTemperature();                   // bmxt1
-            bmx_humid = bme1.readHumidity();                     // bmxh1 
+            bmx_temp = bme2.readTemperature();                   // bmxt1
+            bmx_humid = bme2.readHumidity();                     // bmxh1 
           }
           else { // BMP390
             bmx_pressure = bm32.readPressure()/100.0F;
-            bmx_temp = bm31.readTemperature();
+            bmx_temp = bm32.readTemperature();
           }
           break;
           
         case BMP388_CHIP_ID :
           bmx_pressure = bm32.readPressure()/100.0F;
-          bmx_temp = bm31.readTemperature();
+          bmx_temp = bm32.readTemperature();
           break;
         
         default: // WTF
@@ -223,7 +223,8 @@ void StationMonitor() {
     } 
   }
 
-  if (cycle == 5) {   
+  if (cycle == 5) {
+#ifdef NOWAY
     if (VEML7700_exists) {
       float lux = veml.readLux(VEML_LUX_AUTO);
       lux = (isnan(lux)) ? 0.0 : lux;
@@ -232,6 +233,9 @@ void StationMonitor() {
     else {
       sprintf (msgbuf, "LX NF");
     }
+#else
+  sprintf (msgbuf, "LX NF");
+#endif
   }
 
   if (cycle == 6) {
@@ -296,9 +300,9 @@ void StationMonitor() {
   if (cycle == 10) {
     if (PM25AQI_exists) {
       sprintf (msgbuf, "PM 10:%d 25:%d 100:%d", 
-        pm25aqi_obs.s10,
-        pm25aqi_obs.s25,
-        pm25aqi_obs.s100);
+        pm25aqi_obs.e10,
+        pm25aqi_obs.e25,
+        pm25aqi_obs.e100);
     }
     else {
       sprintf (msgbuf, "PM NF");

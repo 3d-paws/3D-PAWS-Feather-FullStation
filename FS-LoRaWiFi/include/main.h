@@ -10,7 +10,6 @@
  * ======================================================================================================================
  */
 
-
  /*
  * ======================================================================================================================
  *  Relay Power Control Pin
@@ -37,7 +36,7 @@ extern unsigned long Time_of_next_obs;  // time of next observation
 extern unsigned long nextinfo;          // Time of Next INFO transmit 
 
 // Function prototypes
-int time_to_next_obs();
+unsigned long time_to_next_obs();
 void HeartBeat();
 void BackGroundWork();
 

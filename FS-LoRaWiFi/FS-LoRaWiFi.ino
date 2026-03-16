@@ -1,90 +1,102 @@
 #define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-260224"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-260304"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
  * Full Station LoRaWAN WiFi Node
  *   Board Type : Adafruit Feather M0 LoRaWAN Board https://www.adafruit.com/product/3178
  *   Board Type : Adafruit Feather M0 WiFi Board https://www.adafruit.com/product/3010
- *   Description: 
+ *
  *   Author: Robert Bubon
- *   Date:   2024-01-01 RJB Initial
- *           2024-03-25 RJB Swapped Rain Gauge Pins Now: A3=RG1, A2=RG2
- *           2024-04-09 RJB Limited the EQ freqs used for TTN to just 868.1 868.3 868.5
- *           2024-04-10 RJB Backed out the above just need to define the additional freqs on device at TTN
- *           2024-04-11 RJB When Serial Console Enabled, EEPRM is cleared at Boot
- *                          System status bit cleared for wind direction
- *                          System status bit setup for eeprom
- *                          Stopped clearing the GPS status bit if not found at boot
- *           2024-04-14 RJB Converted to OTAA
- *           2024-04-21 RJB Increased wait time to resend from 5s to 10. This helped with n2s sending.
- *                          Changed how long we stay in n2s sending base on interval of obs (1s, 5s 15s)
- *           2024-04-30 RJB Fixed bug in Station Monitor
- *                          Station Monitor Line 3 now delays 5s between updates
- *           2024-06-10 RJB Modified SF.h - isValidHexString(), hexStringToUint32(), SDC.h - SD_findKey()
- *                          Added HI, WBT, WBGT
- *           2024-06-23 RJB Copyright Added
- *           2024-07-17 RJB Removed #include <ArduinoLowPower.h> not needed
- *           2024-07-18 RJB Pin changes A2 Wind, A3 RG1, A4 RG2, A5, Distance
- *           2024-08-09 RJB Merged changed into LoRaWAN code base to support WiFi boards
- *                          Renamed to FullStaion LoRaWan WiFi or FSLW
- *           2024-08-14 RJB Quality check added to WiFi NTP time 
- *                          Changed OBS_Send to look for http error code 500. For N2S being sent a 500 response
- *                          means I move past that in the N2S file
- *                          If year is not valid we will not send a observation.
- *                          Added define statements for valid start and end years
- *           2024-08-25 RJB hih8_getTempHumid() modified removing Wire.endTransmission() call.
- *                          pm25aqi_initialize() now calls I2C_Device_Exist(PM25AQI_ADDRESS) instead of doing wire call directly.
- *           2024-08-26 RJB Moved the WiFi connection check / reconnect to WiFi_Send()
- *           2024-08-27 RJB Changed Distance sensor to multiply raw value by 5 for 5m, 10 for 10m, OBS will be in mm
- *           2024-10-07 RJB Improved hi_calculate() function.
- *           2024-11-05 RJB Discovered BMP390 first pressure reading is bad. Added read pressure to bmx_initialize()
- *                          Bug fixes for 2nd BMP sensor in bmx_initialize() using first sensor data structure
- *                          Now will only send humidity if bmx sensor supports it.
- *           2025-01-26 RJB Added support for Tinovi moisture sensors (Leaf, Soil, Multi Level Soil)
- *                          Added support for GetDeviceID()
- *                          Added support for observation intervals 1,5,6,10,15,20,30
- *           2025-09-11 RJB In OBS fixed casting bug on rain collection. Added (float)
- *                          (rain > (((float) rgds / 60) * QC_MAX_RG))
- *                          Added tmsms5 that was forgotten
- *           2025-09-17 RJB Renamed WRDB.h to WRDA.h
- *                          Added SD_crt_file file
- *                          Added clear rain totals CRT.TXT
- *           
- *           2026-02-19 RJB Release Major Update 
- *                          Added lora wan options to config file
- *                          Added SDU boot
- *                          SD_ClearRainTotals(); // Clear from EEPROM if CRT.TXT exists
- *                          Added INFO_Do() 
- *                          Library Update and Changes
- *                            Changed SD to SdFat 2.3.0
- *                            Add Adafruit_ZeroDMA, LeafArduinoI2c, i2cArduino, i2cMultiArd
- *                            MCCI LoRaWAN LMIC library 4.1.1 -> 5.0.1
- *                            BMP280 2.6.2 -> 2.6.8
- *                            BMP3XX 2.1.2 -> 2.1.6
- *                            BusIO 1.11.6 -> 1.17.4
- *                            GFX 1.11.1 -> 1.12.4
- *                            HTU21DF 1.1.0 -> 1.1.2
- *                            MCP9808 2.0.0 -> 2.0.2
- *                            PM25_AQI 1.0.6 -> 2.0.0
- *                            SHT31 2.2.0 -> 2.2.2
- *                            SI1145 1.2.0 -> 1.2.2
- *                            SSD1306 2.5.3-> 2.5.16
- *                            Unified_Sensor 1.1.5 -> 1.1.15
- *                            VEML7700 2.1.2 -> 2.1.6
- *                            RTClib 2.0.3 -> 2.1.4                 
- *                          Fixed bug in Wind_SampleDirection(), if AS5600 went offline we would stop doing wind. 
- *                          Moved A4/A5 to OP1/OP2 
- *                          Added OP2 option to read voltaic voltage
- *                          Documentation Added
- *          2026-02-24 RJB  
- *                          Setup RTC refresh every 4 hours               
- *                          
+ *   Version History
+ *     2024-01-01 RJB Initial
+ *     2024-03-25 RJB Swapped Rain Gauge Pins Now: A3=RG1, A2=RG2
+ *     2024-04-09 RJB Limited the EQ freqs used for TTN to just 868.1 868.3 868.5
+ *     2024-04-10 RJB Backed out the above just need to define the additional freqs on device at TTN
+ *     2024-04-11 RJB When Serial Console Enabled, EEPRM is cleared at Boot
+ *                    System status bit cleared for wind direction
+ *                    System status bit setup for eeprom
+ *                    Stopped clearing the GPS status bit if not found at boot
+ *     2024-04-14 RJB Converted to OTAA
+ *     2024-04-21 RJB Increased wait time to resend from 5s to 10. This helped with n2s sending.
+ *                    Changed how long we stay in n2s sending base on interval of obs (1s, 5s 15s)
+ *     2024-04-30 RJB Fixed bug in Station Monitor
+ *                    Station Monitor Line 3 now delays 5s between updates
+ *     2024-06-10 RJB Modified SF.h - isValidHexString(), hexStringToUint32(), SDC.h - SD_findKey()
+ *                    Added HI, WBT, WBGT
+ *     2024-06-23 RJB Copyright Added
+ *     2024-07-17 RJB Removed #include <ArduinoLowPower.h> not needed
+ *     2024-07-18 RJB Pin changes A2 Wind, A3 RG1, A4 RG2, A5, Distance
+ *     2024-08-09 RJB Merged changed into LoRaWAN code base to support WiFi boards
+ *                    Renamed to FullStaion LoRaWan WiFi or FSLW
+ *     2024-08-14 RJB Quality check added to WiFi NTP time 
+ *                    Changed OBS_Send to look for http error code 500. For N2S being sent a 500 response
+ *                    means I move past that in the N2S file
+ *                    If year is not valid we will not send a observation.
+ *                    Added define statements for valid start and end years
+ *     2024-08-25 RJB hih8_getTempHumid() modified removing Wire.endTransmission() call.
+ *                    pm25aqi_initialize() now calls I2C_Device_Exist(PM25AQI_ADDRESS) instead of doing wire call directly.
+ *     2024-08-26 RJB Moved the WiFi connection check / reconnect to WiFi_Send()
+ *     2024-08-27 RJB Changed Distance sensor to multiply raw value by 5 for 5m, 10 for 10m, OBS will be in mm
+ *     2024-10-07 RJB Improved hi_calculate() function.
+ *     2024-11-05 RJB Discovered BMP390 first pressure reading is bad. Added read pressure to bmx_initialize()
+ *                    Bug fixes for 2nd BMP sensor in bmx_initialize() using first sensor data structure
+ *                    Now will only send humidity if bmx sensor supports it.
+ *     2025-01-26 RJB Added support for Tinovi moisture sensors (Leaf, Soil, Multi Level Soil)
+ *                    Added support for GetDeviceID()
+ *                    Added support for observation intervals 1,5,6,10,15,20,30
+ *     2025-09-11 RJB In OBS fixed casting bug on rain collection. Added (float)
+ *                    (rain > (((float) rgds / 60) * QC_MAX_RG))
+ *                    Added tmsms5 that was forgotten
+ *     2025-09-17 RJB Renamed WRDB.h to WRDA.h
+ *                    Added SD_crt_file file
+ *                    Added clear rain totals CRT.TXT
+ * 
+ *     2026-02-19 RJB Release Major Update 
+ *                    Added lora wan options to config file
+ *                    Added SDU boot
+ *                    SD_ClearRainTotals(); // Clear from EEPROM if CRT.TXT exists
+ *                    Added INFO_Do() 
+ *                    Library Update and Changes
+ *                    Changed SD to SdFat 2.3.0
+ *                    Add Adafruit_ZeroDMA, LeafArduinoI2c, i2cArduino, i2cMultiArd
+ *                    MCCI LoRaWAN LMIC library 4.1.1 -> 5.0.1
+ *                    BMP280 2.6.2 -> 2.6.8
+ *                    BMP3XX 2.1.2 -> 2.1.6
+ *                    BusIO 1.11.6 -> 1.17.4
+ *                    GFX 1.11.1 -> 1.12.4
+ *                    HTU21DF 1.1.0 -> 1.1.2
+ *                    MCP9808 2.0.0 -> 2.0.2
+ *                    PM25_AQI 1.0.6 -> 2.0.0
+ *                    SHT31 2.2.0 -> 2.2.2
+ *                    SI1145 1.2.0 -> 1.2.2
+ *                    SSD1306 2.5.3-> 2.5.16
+ *                    Unified_Sensor 1.1.5 -> 1.1.15
+ *                    VEML7700 2.1.2 -> 2.1.6
+ *                    RTClib 2.0.3 -> 2.1.4     
+ *                    Fixed bug in Wind_SampleDirection(), if AS5600 went offline we would stop doing wind. 
+ *                    Moved A4/A5 to OP1/OP2 
+ *                    Added OP2 option to read voltaic voltage
+ *                    Documentation Added
+ * 
+ *     2026-02-24 RJB Setup RTC refresh every 4 hours 
+ *                    Added #defines for the OP pin value check  
+ * 
+ *     2026-02-26 RJB Removed the support for Tinovi MultiLevel Soil Moisture (4 Soil and 2 Temperature) 
+ *     2026-03-02 RJB AQS set tot the 3 environmental readings
+ *                    Bug Fix added in setup()
+ *                    mslp_initialize();
+ *                    hdc_initialize();
+ *                    lps_initialize();
+ *                    Bug Wind_Distance_Air_Initialize() has bit OR not logic OR
+ *     2026-03-04 RJB Info WiFi now reports LoRaWAN region (lwr)  
+ *     2026-03-16 RJB  Bug fix in statmon.cpp B2   
+ *     
  *  Future Note - Support Chords and Google Big Query
  *    OBS.h line 212 will need to be modified
  *    EX URL curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
- *               "https://bigquery.googleapis.com/bigquery/v2/projects/YOUR_PROJECT_ID/datasets/YOUR_DATASET_ID"
- *                          
+ *     "https://bigquery.googleapis.com/bigquery/v2/projects/YOUR_PROJECT_ID/datasets/YOUR_DATASET_ID"
+ *     
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
  *    cp lmic_project_config.h-eu lmic_project_config.h
@@ -102,8 +114,6 @@
  *    #define PERIPH_SPI1   sercom1
  * 
  *  Also need to map the rest of the RFM95 Pins to see if we can make it work.
- * 
- * 
  *======================================================================================================================
  */
 
@@ -150,8 +160,8 @@
  * A1            A1       WatchDog Heartbeat             Grove A0
  * A2            A2       Interrupt For Anemometer       Grove A2
  * A3            A3       Interrupt For Rain Gauge 1     Grove A2
- * A4            A4       Interrupt For Rain Gauge 2     Grove A4
- * A5            A5       Distance Sensor                Grove A4
+ * A4            A4       Option Pin 1                   Grove A4
+ * A5            A5       Option Pin 2                   Grove A4
  * SCK           SCK      SPI0 Clock                     Not on Grove               
  * MOS           MOSI     Used by SD Card                Not on Grove
  * MIS           MISO     Used by SDCard                 Not on Grove
@@ -193,7 +203,7 @@
  */
 #include "boot/SDU.h"
 
- /* 
+/* 
  *=======================================================================================================================
  * Local Includes
  *=======================================================================================================================
@@ -269,7 +279,7 @@ void obs_interval_initialize() {
  * time_to_next_obs() - This will return milliseconds to next observation
  *=======================================================================================================================
  */
-int time_to_next_obs() {
+unsigned long time_to_next_obs() {
   if (cf_obs_period == 1) {
     return (millis() + 60000); // Just go 60 seconds from now.
   }
@@ -327,7 +337,7 @@ void BackGroundWork() {
   uint64_t OneSecondFromNow = millis() + 1000;
 
   if (!AQS_Enabled) {
-    if ((cf_op1==5)||(cf_op1==10)) {
+    if ((cf_op1==OP1_STATE_DIST_5M)||(cf_op1==OP1_STATE_DIST_10M)) {
       DS_TakeReading();
     }
     
@@ -440,7 +450,7 @@ void setup() {
     }
 
     // Optipolar Hall Effect Sensor SS451A - Rain2 Gauge
-    if (cf_op1 == 2) {
+    if (cf_op1 == OP1_STATE_RAIN) {
       raingauge2_interrupt_count = 0;
       raingauge2_interrupt_stime = millis();
       raingauge2_interrupt_ltime = 0;  // used to debounce the tip
@@ -476,16 +486,17 @@ void setup() {
   lux_initialize();   // Can not use when GPS Module is connected same i2c address of 0x10
 #endif
   pm25aqi_initialize();
+  hdc_initialize();
+  lps_initialize();
 
-  // Tinovi Mositure Sensors
+  // Tinovi Leaf Mositure Sensor
   tlw_initialize();
-  tsm_initialize();
-  tmsm_initialize();
 
   // Derived Observations
   wbt_initialize();
   hi_initialize();
   wbgt_initialize();
+  mslp_initialize();
 
   // See what network solution we have
   WiFi.setPins(8,7,4,2);

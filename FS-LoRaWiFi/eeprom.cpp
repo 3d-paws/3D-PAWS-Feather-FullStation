@@ -308,5 +308,4 @@ void EEPROM_initialize() {
   } else {
     Output("EEPROM NF");
   }
-  
 }

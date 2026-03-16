@@ -45,7 +45,6 @@ typedef struct {
   int bucket_idx;
   float gust;
   int gust_direction;
-  int sample_count;
 } WIND_STR;
 
 /*
@@ -55,6 +54,27 @@ typedef struct {
  */
 #define OP1_PIN  A4
 #define OP2_PIN  A5
+
+/*
+ * ======================================================================================================================
+ *  Pin OP1 State Setup
+ * ======================================================================================================================
+ */
+#define OP1_STATE_NULL       0
+#define OP1_STATE_RAW        1
+#define OP1_STATE_RAIN       2
+#define OP1_STATE_DIST_5M    5
+#define OP1_STATE_DIST_10M   10
+
+/*
+ * ======================================================================================================================
+ *  Pin OP2 State Setup
+ * ======================================================================================================================
+ */
+#define OP2_STATE_NULL       0
+#define OP2_STATE_RAW        1
+#define OP2_STATE_VOLTAIC    2
+
 
 #define RAINGAUGE1_IRQ_PIN  A3
 #define RAINGAUGE2_IRQ_PIN  OP1_PIN
@@ -96,11 +116,11 @@ float Wind_SpeedAverage();
 float Wind_Gust();
 int Wind_GustDirection();
 void Wind_GustUpdate();
-void Wind_ClearSampleCount();
 void Wind_TakeReading();
 void as5600_initialize();
 float Pin_ReadAvg(int pin);
 float VoltaicVoltage(int pin);
+float VoltaicPercent(float half_cell_voltage);
 void DS_TakeReading();
 float DS_Median();
 

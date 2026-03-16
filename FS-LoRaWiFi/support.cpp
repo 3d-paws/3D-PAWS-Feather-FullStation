@@ -6,13 +6,10 @@
 #include <arduino.h>
 #include <Wire.h>
 
-// #include "include/output.h"
 #include "include/feather.h"
+#include "include/output.h"
 #include "include/main.h"
 #include "include/support.h"
-
-// Prototyping functions to aviod compile function unknown issue.
-void Output(const char *str);
 
 /*
  * ======================================================================================================================

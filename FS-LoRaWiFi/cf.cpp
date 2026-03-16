@@ -24,7 +24,7 @@
  */
 int cf_lw_mode=0; // 0=OTAA, 1=ABP
 int cf_lw_sf=7;   // Spreading factor (7,8)
-int cf_lw_txpw=14; // Transmit Power
+int cf_lw_txpwr=14; // Transmit Power
 // OTAA
 char *cf_lw_joineui = NULL;
 char *cf_lw_deveui = NULL;
@@ -50,14 +50,16 @@ char *cf_info_urlpath    = NULL;
 char *cf_info_apikey     = NULL;
 // Time Server
 char *cf_ntpserver = NULL;
-
+// Instruments
 int cf_rg1_enable=0;
-int cf_op1=0;
-int cf_op2=0;
+int cf_op1=OP1_STATE_NULL;
+int cf_op2=OP2_STATE_NULL;
 int cf_ds_baseline=0;
+int cf_elevation=0;
+// System Timing
 int cf_obs_period=0;
 int cf_daily_reboot=0;
-int cf_elevation=0;
+
 
 /*
  * ======================================================================================================================
@@ -65,7 +67,7 @@ int cf_elevation=0;
  * =======================================================================================================================
  */
 
- /* 
+/* 
  * =======================================================================================================================
  * Support functions for Config file
  * 
@@ -136,6 +138,23 @@ int SD_findKey(const __FlashStringHelper * key, char * value) {
 int HELPER_ascii2Int(char *ascii, int length) {
   int sign = 1;
   int number = 0;
+
+  for (int i = 0; i < length; i++) {
+    char c = *(ascii + i);
+    if (i == 0 && c == '-')
+      sign = -1;
+    else {
+      if (c >= '0' && c <= '9')
+        number = number * 10 + (c - '0');
+    }
+  }
+
+  return number * sign;
+}
+
+long HELPER_ascii2Long(char *ascii, int length) {
+  int sign = 1;
+  long number = 0;
 
   for (int i = 0; i < length; i++) {
     char c = *(ascii + i);
@@ -249,9 +268,9 @@ void SD_ReadConfigFile() {
   sprintf(msgbuf, "CF:%s=[%d]", F("CF:lw_sf"),   cf_lw_sf);   Output (msgbuf);
 
   // Transmit Power
-  cf_lw_txpw = SD_findInt(F("lw_txpw"));
-  if ((cf_lw_txpw<14) || (cf_lw_txpw>20)) cf_lw_txpw = 14;
-  sprintf(msgbuf, "CF:%s=[%d]", F("CF:lw_txpw"),   cf_lw_txpw);   Output (msgbuf);
+  cf_lw_txpwr = SD_findInt(F("lw_txpw"));
+  if ((cf_lw_txpwr<14) || (cf_lw_txpwr>20)) cf_lw_txpwr = 14;
+  sprintf(msgbuf, "CF:%s=[%d]", F("CF:lw_txpwr"),   cf_lw_txpwr);   Output (msgbuf);
 
   // LoRa OTAA
   cf_lw_joineui    = SD_findCharStr(F("lw_joineui"));
@@ -312,25 +331,30 @@ void SD_ReadConfigFile() {
   cf_info_apikey  = SD_findCharStr(F("info_apikey"));
   sprintf(msgbuf, "%s=[%s]", F("CF:info_apikey"), cf_info_apikey); Output (msgbuf);
 
-  //Time Server
+  // Time Server
   cf_ntpserver    = SD_findCharStr(F("ntpserver"));
   sprintf(msgbuf, "%s=[%s]", F("CF:ntpserver"), cf_ntpserver); Output (msgbuf);
 
-  // Option Pin 1 A4
+  // Rain Gauge 1
   cf_rg1_enable   = SD_findInt(F("rg1_enable"));
   sprintf(msgbuf, "%s=[%d]", F("CF:rg1_enable"), cf_rg1_enable); Output (msgbuf);
 
+  // Option Pin 1 A4
   cf_op1   = SD_findInt(F("op1"));
   sprintf(msgbuf, "%s=[%d]", F("CF:op1"), cf_op1); Output (msgbuf);
-  if ((cf_op1 != 0) && (cf_op1 != 1) && (cf_op1 != 2) && (cf_op1 != 5) && (cf_op1 != 10)) {
-    cf_op1 = 0;
+  if ((cf_op1 != OP1_STATE_NULL) && 
+      (cf_op1 != OP1_STATE_RAW) && 
+      (cf_op1 != OP1_STATE_RAIN) && 
+      (cf_op1 != OP1_STATE_DIST_5M) && 
+      (cf_op1 != OP1_STATE_DIST_10M)) {
+    cf_op1 = OP1_STATE_NULL;
     Output (" OP1 Invalid");
   }
-  else if (cf_op1 == 5) {
+  else if (cf_op1 == OP1_STATE_DIST_5M) {
     dg_resolution_adjust = 5;
     Output (" DIST5M Set");
   }
-  else if (cf_op1 == 10) {
+  else if (cf_op1 == OP1_STATE_DIST_10M) {
     dg_resolution_adjust = 10;
     Output (" DIST10M Set");
   }
@@ -338,8 +362,10 @@ void SD_ReadConfigFile() {
   // Option Pin 2 A5
   cf_op2    = SD_findInt(F("op2"));
   sprintf(msgbuf, "%s=[%d]", F("CF:op2"), cf_op2); Output (msgbuf);
-  if ((cf_op2 != 0) && (cf_op2 != 1) && (cf_op2 != 2)) {
-    cf_op2 = 0;
+  if ((cf_op2 != OP2_STATE_NULL) && 
+      (cf_op2 != OP2_STATE_RAW) && 
+      (cf_op2 != OP2_STATE_VOLTAIC)) {
+    cf_op2 = OP2_STATE_NULL;
     Output (" OP2 Invalid");
   }
 

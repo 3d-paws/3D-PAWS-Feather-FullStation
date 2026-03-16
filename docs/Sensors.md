@@ -19,7 +19,6 @@ Sensors
 | Honeywell HIH8000             | Temp/Humidity           | Reliable, digital I2C, ±3% RH, ±0.5°C, industrial grade.                                                | [Honeywell HIH8000](https://sensing.honeywell.com)          |
 | Tinovi LeafSens               | Leaf Wetness/Temp       | Non-contact capacitive leaf wetness + temperature, digital.                                              | [Tinovi LeafSens](https://www.tinovi.com/leafsens)          |
 | Tinovi i2cArduino             | Soil Moisture/Temp      | Capacitive soil moisture + temperature, I2C.                                                             | [Tinovi i2cArduino](https://www.tinovi.com/i2carduino)      |
-| Tinovi i2cMultiSm             | Multi Soil/Temp         | 5-point capacitive moisture + temperature, I2C, multi-depth.                                             | [Tinovi i2cMultiSm](https://www.tinovi.com/i2cmultism)      |
 | AS5600                        | Magnetic Encoder        | Rotational angle/magnetic position sensor, I2C.                                                          | [AS5600 Sensor](https://www.ams.com/as5600)                 |
 | AS5600L                       | Magnetic Encoder        | Same as AS5600, but designed for integration in new designs (ex: Particle Muon).                         | [AS5600L Sensor](https://www.ams.com/as5600l)               |
 | SS451A (Rain Gauge)           | Hall Effect Switch      | Digital magnetic field sensor, rugged, used as rain gauge switch.                                        | [SS451A Datasheet](https://sensing.honeywell.com)           |
@@ -100,13 +99,6 @@ Sensors
 | tsme25-[1-8] | MUX Tinovi Soil Moisture e25 |
 | tsmec-[1-8] | MUX Tinovi Soil Moisture ec |
 | tsmvwc-[1-8] | MUX Tinovi Soil Moisture vwc |
-| tmsms1   | Tinovi i2cMultiSm Soil Moisture 1           |
-| tmsms2   | Tinovi i2cMultiSm Soil Moisture 2           |
-| tmsms3   | Tinovi i2cMultiSm Soil Moisture 3           |
-| tmsms4   | Tinovi i2cMultiSm Soil Moisture 4           |
-| tmsms5   | Tinovi i2cMultiSm Soil Moisture 5           |
-| tmsmt1   | Tinovi i2cMultiSm Soil Moisture Temperature          |
-| tmsmt2   | Tinovi i2cMultiSm Soil Moisture Temperature            |
 
 
 ### Wind
@@ -342,7 +334,7 @@ double wbt_calculate(double T, double RH) {
 - Two Methods of computing based on MCP_3 sensor existing Black Globle sensor.
 - if MCP_3 use wbgt = wbgt_using_wbt(sht1_temp, mcp3_temp, wetbulb_temp);
 - Otherwise wbgt = wbgt_using_hi(heat_index); - requires SHT_1_exists 
-<div style="overflow:auto; white-space:pre; font-family: monospace; font-size: 8px; line-height: 1.5; height: 600px; border: 1px solid black; padding: 10px;">
+<div style="overflow:auto; white-space:pre; font-family: monospace; font-size: 8px; line-height: 1.5; height: 500px; border: 1px solid black; padding: 10px;">
 
 ```C
 /* 
@@ -388,7 +380,7 @@ double wbgt_using_hi(double HIc) {
 #### Mean Sea Level Pressure
 - Reported as "mslp" if station elevation is set "ELEV.TXT" and station is configured with a SHT and BMP sensors. 
 
-<div style="overflow:auto; white-space:pre; font-family: monospace; font-size: 8px; line-height: 1.5; height: 600px; border: 1px solid black; padding: 10px;">
+<div style="overflow:auto; white-space:pre; font-family: monospace; font-size: 8px; line-height: 1.5; height: 500px; border: 1px solid black; padding: 10px;">
 
 ```C
 /* 
@@ -437,5 +429,32 @@ double mslp_calculate(float Ts, float RH, float ps, int station_height) {
 ```
 </div>
 
+### Reading Voltaic Battery Voltage Breakout on the UCB-C
+Newer Voltaic Battery V25/V50/V75 firmware (post-2023) moved this cell voltage signal to SBU pins (A8/B8) on USB-C for better USB compliance. Older units used D+. Which conflicted with data transfer.  The expected voltage range on Voltaic V25's monitor pins (D+ on older firmware, SBU1 (A8) and SBU2 (B8) on newer) is 1.6V to 2.1V
 
+In the configuration file CONFIG.TXT, configure "op2=2".
+
+This will report as "vbv" (Voltaic Battery Voltage)
+
+[Adafruit USB Type C Breakout Board - Downstream Connection](https://www.adafruit.com/product/4090)
+<div style="overflow:auto; white-space:pre; font-family: monospace; font-size: 8px; line-height: 1.5; height: 200px; border: 1px solid black; padding: 10px;">
+
+```C
+/* 
+ *=======================================================================================================================
+ * VoltaicVoltage() - Breakout the UCB-C 
+ *=======================================================================================================================
+ */
+float VoltaicVoltage(int pin) {
+  int numReadings = 5;
+  int totalValue = 0;
+  for (int i = 0; i < numReadings; i++) {
+    totalValue += analogRead(pin);
+    delay(10);  // Short delay between readings
+  }
+  float voltage = (3.3 * (totalValue / numReadings)) / 4095.0; 
+  return(voltage);
+}
+```
+</div>
 

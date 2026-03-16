@@ -3,8 +3,6 @@
  *  sensors.h - I2C Sensor Definations
  * ======================================================================================================================
  */
-
-//#include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
 #include <Adafruit_BME280.h>
 #include <Adafruit_BMP3XX.h>
@@ -12,13 +10,14 @@
 #include <Adafruit_MCP9808.h>
 #include <Adafruit_SI1145.h>
 #include <Adafruit_SHT31.h>
+#ifdef NOWAY
 #include <Adafruit_VEML7700.h>
+#endif
 #include <Adafruit_PM25AQI.h>
 #include <Adafruit_HDC302x.h>
 #include <Adafruit_LPS35HW.h>
 #include <i2cArduino.h>
 #include <LeafSens.h>
-#include <i2cMultiSm.h>
 
 /*
  * ======================================================================================================================
@@ -168,9 +167,11 @@ extern float si_last_uv;
  *  VEML7700 - I2C - Lux Sensor
  * ======================================================================================================================
  */
+#ifdef NOWAY
 #define VEML7700_ADDRESS   0x10
 extern Adafruit_VEML7700 veml;
 extern bool VEML7700_exists;
+#endif
 
 /*
  * ======================================================================================================================
@@ -202,9 +203,6 @@ extern bool BLX_exists;
  *  pme = Particulate Matter Environmental
  * 
  *  Variable Tags for what we monitor and report on
- *    pm1s10
- *    pm1s25
- *    pm1s100
  *    pm1e10
  *    pm1e25
  *    pm1e100
@@ -222,7 +220,6 @@ extern bool BLX_exists;
 #define PM25AQI_1M_BUCKETS  60
 
 typedef struct {
-  int32_t s10, s25, s100; 
   int32_t e10, e25, e100;
 } PM25AQI_OBS;
 
@@ -230,7 +227,6 @@ extern PM25AQI_OBS pm25aqi_1m_obs[PM25AQI_1M_BUCKETS];
 extern int pm25aqi_1m_bucket;
 
 typedef struct {
-  int32_t s10, s25, s100; 
   int32_t e10, e25, e100;
   int count=0;
   int fail_count=0;
@@ -289,7 +285,7 @@ extern bool TLW_exists;
 
 /*
  * ======================================================================================================================
- *  Tinovi MultiLevel Soil Moisture (4 Soil and 2 Temperature)
+ *  Tinovi Soil Moisture initialize
  *    Chip ID = 0x63,  Library init checks this.
  * ======================================================================================================================
  */
@@ -297,17 +293,6 @@ extern bool TLW_exists;
 
 extern SVCS3 tsm;
 extern bool TSM_exists;
-
-/*
- * ======================================================================================================================
- *  Tinovi MultiLevel Soil Moisture (4 Soil and 2 Temperature)
- *    Chip ID = 0x63,  Library init checks this.
- * ======================================================================================================================
- */
-#define TMSM_ADDRESS    0x65
-
-extern SVMULTI tmsm;
-extern bool TMSM_exists;
 
 // Function prototype
 byte get_Bosch_ChipID (byte address);
@@ -327,18 +312,17 @@ double wbgt_using_wbt(double Ta, double Tg, double Tw);
 void mslp_initialize();
 double mslp_calculate(float Ts, float RH, float ps, int station_height);
 void si1145_initialize();
-void vlx_initialize();
+// void vlx_initialize(); // I2C 0x10 same as GPS
 // bool blx_getconfig();
 void blx_initialize();
 float blx_takereading();
 void pm25aqi_1m_clear();
 void pm25aqi_clear();
 void pm25aqi_initialize();
-void pm25aqi_Produce_1m_Average() ;
+void pm25aqi_Produce_1m_Average();
 void pm25aqi_TakeReading();
 void pm25aqi_TakeReading_AQS();
 void hdc_initialize();
 void lps_initialize();
 void tlw_initialize();
 void tsm_initialize();
-void tmsm_initialize();

@@ -124,6 +124,6 @@ daily_reboot=22
 elevation=0
 ```
 
-At initialization:
+### At initialization:
 - I2C sensors are auto detected. For example, if the AS5600 wind direction sensor is not detected, wind-related measurements and dependent observations will not be performed or reported.
 - Software will discover the Afafruit board type (LoRa, WiFi) and configure accordingly.

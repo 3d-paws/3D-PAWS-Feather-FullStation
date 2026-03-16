@@ -18,7 +18,6 @@
 #define SSB_FROM_N2S        0x8       // Set in transmitted N2S observation when finally transmitted
 #define SSB_RTC             0x10      // Set if RTC missing at boot
 
-
 // Extern variables
 extern unsigned long SystemStatusBits;
 

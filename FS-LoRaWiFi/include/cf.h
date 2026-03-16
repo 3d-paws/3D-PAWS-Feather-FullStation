@@ -61,7 +61,7 @@ lw_sf=7
 
 # Transmit Power (14 - 20) dBm are valid, with higher ones (17–20) drawing more current 
 # (~120 mA (0.12 amp) peak at 20 dBm)  but offering better range
-lw_txpw=14
+lw_txpwr=14
 
 ############################################
 # LoRaWAN OTAA (Over The Air Authentication)
@@ -144,7 +144,7 @@ extern int cf_lw_mode;
 // Spreading factor
 extern int cf_lw_sf;
 // Transmit Power
-extern int cf_lw_txpw;
+extern int cf_lw_txpwr;
 // OTAA
 extern char *cf_lw_joineui;
 extern char *cf_lw_deveui;
@@ -181,4 +181,3 @@ extern int cf_elevation;
 
 // Function prototypes
 void SD_ReadConfigFile();
-void SD_ReadElevationFile();
