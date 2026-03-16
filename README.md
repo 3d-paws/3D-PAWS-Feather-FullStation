@@ -47,6 +47,7 @@
 ### [Sensor Information](docs/Sensors.md)
 ### [Serial Monitor](docs/SerialMonitor.md)
 ### [System Health Bits (hth)](docs/SystemHealthBits.md)
+### [Voltaic Battery Voltage](docs/VoltaicBatteryVoltage.md)
 ### [WatchDog Board](docs/WatchDog.md)
 ### [WiFi Board Preparation](docs/WiFiBoardPrep.md)
 
