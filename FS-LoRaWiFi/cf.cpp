@@ -52,6 +52,7 @@ char *cf_info_apikey     = NULL;
 char *cf_ntpserver = NULL;
 // Instruments
 int cf_rg1_enable=0;
+int cf_nowind=0;
 int cf_op1=OP1_STATE_NULL;
 int cf_op2=OP2_STATE_NULL;
 int cf_ds_baseline=0;
@@ -59,6 +60,7 @@ int cf_elevation=0;
 // System Timing
 int cf_obs_period=0;
 int cf_daily_reboot=0;
+int cf_rtro=0;
 
 
 /*
@@ -335,6 +337,10 @@ void SD_ReadConfigFile() {
   cf_ntpserver    = SD_findCharStr(F("ntpserver"));
   sprintf(msgbuf, "%s=[%s]", F("CF:ntpserver"), cf_ntpserver); Output (msgbuf);
 
+  // No Wind = 1
+  cf_nowind      = SD_findInt(F("nowind"));
+  sprintf(msgbuf, "CF:%s=[%d]", F("nowind"), cf_nowind); Output (msgbuf);
+
   // Rain Gauge 1
   cf_rg1_enable   = SD_findInt(F("rg1_enable"));
   sprintf(msgbuf, "%s=[%d]", F("CF:rg1_enable"), cf_rg1_enable); Output (msgbuf);
@@ -353,10 +359,16 @@ void SD_ReadConfigFile() {
   else if (cf_op1 == OP1_STATE_DIST_5M) {
     dg_resolution_adjust = 5;
     Output (" DIST5M Set");
+    pinMode(OP1_PIN, INPUT);
   }
   else if (cf_op1 == OP1_STATE_DIST_10M) {
     dg_resolution_adjust = 10;
     Output (" DIST10M Set");
+    pinMode(OP1_PIN, INPUT);
+  }
+  else if ((cf_op1 == OP1_STATE_RAW) || 
+           (cf_op1 == OP1_STATE_RAIN)) {
+    pinMode(OP1_PIN, INPUT);
   }
   
   // Option Pin 2 A5
@@ -368,15 +380,25 @@ void SD_ReadConfigFile() {
     cf_op2 = OP2_STATE_NULL;
     Output (" OP2 Invalid");
   }
-
+  if ((cf_op2 == OP2_STATE_RAW) || (cf_op2 == OP2_STATE_VOLTAIC)) {
+     pinMode(OP2_PIN, INPUT);
+  }
+  
   cf_ds_baseline = SD_findInt(F("ds_baseline"));
   sprintf(msgbuf, "%s=[%d]", F("CF:ds_baseline"), cf_ds_baseline); Output (msgbuf);
 
+  // System Timing
   cf_obs_period   = SD_findInt(F("obs_period"));
   if (cf_obs_period == 0) {
     cf_obs_period = 1;
   }
   sprintf(msgbuf, "%s:obs_period=[%d]", F("CF:obs_period"), cf_obs_period); Output (msgbuf);
+
+  int cf_rtro = SD_findInt(F("rtro"));
+  if ((cf_rtro < 0) || (cf_rtro > 23)){
+    cf_rtro = 0;
+  }
+  sprintf(msgbuf, "CF:%s=[%d]", F("cf_rtro"), cf_rtro); Output (msgbuf);
   
   // Misc
   cf_daily_reboot = SD_findInt(F("daily_reboot"));

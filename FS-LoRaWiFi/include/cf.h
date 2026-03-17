@@ -92,9 +92,10 @@ lw_appskey=0123456789ABCDEF01234567890ABCDE
 #################################################
 # General Configurations Settings
 #################################################
-# Observation Period (1,5,6,10,15,20,30)
-# 1 minute observation period is the default
-obs_period=1
+# No Wind
+# 0 = wind data
+# 1 = no wind data
+nowind=0
 
 # Rain Gauge (rg1) - pin A3
 # Options 0,1
@@ -117,13 +118,22 @@ op2=0
 # Distance sensor baseline. If positive, distance = baseline - ds_median
 ds_baseline=0
 
-# Number of hours between daily reboots
-# A value of 0 disables this feature
-daily_reboot=22
-
 # elevation used for MSLP
 elevation=0
 
+# Rain Total Rollover Offset from 0 UTC- Valuse of (0 to 23) valid
+rtro=0
+
+#################################################
+# System Timing
+#################################################
+# Observation Period (1,5,6,10,15,20,30)
+# 1 minute observation period is the default
+obs_period=1
+
+# Number of hours between daily reboots
+# A value of 0 disables this feature
+daily_reboot=22
  * ======================================================================================================================
  */
 
@@ -171,13 +181,18 @@ extern char *cf_info_apikey;
 // Time Server
 extern char *cf_ntpserver;
 
+// Instruments
+extern int cf_nowind;
 extern int cf_rg1_enable;
 extern int cf_op1;
 extern int cf_op2;
 extern int cf_ds_baseline;
+extern int cf_elevation;
+
+// System Timing
 extern int cf_obs_period;
 extern int cf_daily_reboot;
-extern int cf_elevation;
+extern int cf_rtro;
 
 // Function prototypes
 void SD_ReadConfigFile();

@@ -14,6 +14,7 @@
 #include "include/sdcard.h"
 #include "include/output.h"
 #include "include/mux.h"
+#include "include/dsmux.h"
 #include "include/lorawan.h"
 #include "include/support.h"
 #include "include/time.h"
@@ -430,7 +431,7 @@ void OBS_Take() {
       obs.sensor[sidx++].inuse = true;
     }
 
-    if (AS5600_exists) {
+    if (!cf_nowind) {
       // Wind Speed
       ws = Wind_SpeedAverage();
       ws = (isnan(ws) || (ws < QC_MIN_WS) || (ws > QC_MAX_WS)) ? QC_ERR_WS : ws;
@@ -966,6 +967,9 @@ void OBS_Take() {
 
   // Tinovi Soil Moisture
   mux_obs_do(sidx);
+
+  // Dallas Sensors Temperature on mux
+  dsmux_obs_do(sidx);
 
   // Set this after we read all sensors. So we capture if their state changes
   obs.hth = SystemStatusBits;

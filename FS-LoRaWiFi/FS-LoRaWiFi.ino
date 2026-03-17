@@ -90,7 +90,10 @@
  *                    lps_initialize();
  *                    Bug Wind_Distance_Air_Initialize() has bit OR not logic OR
  *     2026-03-04 RJB Info WiFi now reports LoRaWAN region (lwr)  
- *     2026-03-16 RJB  Bug fix in statmon.cpp B2   
+ *     2026-03-16 RJB Bug fix in statmon.cpp BMX identification
+ *                    Added DSMUX 1-Wire support for 8 temperature sensors dst0-7
+ *                    Added pinmode INPUT to wind rain OP1, and OP2
+ *                    Added support to set rain total rollover   
  *     
  *  Future Note - Support Chords and Google Big Query
  *    OBS.h line 212 will need to be modified
@@ -221,6 +224,7 @@
 #include "include/gps.h"            // GPS Support Functions
 #include "include/wrda.h"           // Wind Rain Distance Air Functions
 #include "include/mux.h"            // Mux Functions for mux connected sensors
+#include "include/dsmux.h"          // Dallas One Wire Mux Functions 
 #include "include/lorawan.h"        // LoRaWAN Support Functions
 #include "include/sensors.h"        // I2C Based Sensor Functions
 #include "include/statmon.h"        // Station Monitor Functions
@@ -439,6 +443,7 @@ void setup() {
   if (!AQS_Enabled) {
     // Optipolar Hall Effect Sensor SS451A - Rain1 Gauge
     if (cf_rg1_enable) {
+      pinMode(RAINGAUGE1_IRQ_PIN, INPUT);
       raingauge1_interrupt_count = 0;
       raingauge1_interrupt_stime = millis();
       raingauge1_interrupt_ltime = 0;  // used to debounce the tip
@@ -451,6 +456,7 @@ void setup() {
 
     // Optipolar Hall Effect Sensor SS451A - Rain2 Gauge
     if (cf_op1 == OP1_STATE_RAIN) {
+      pinMode(RAINGAUGE2_IRQ_PIN, INPUT);
       raingauge2_interrupt_count = 0;
       raingauge2_interrupt_stime = millis();
       raingauge2_interrupt_ltime = 0;  // used to debounce the tip
@@ -461,10 +467,14 @@ void setup() {
       Output (F("RG2:NOT ENABLED"));
     }
 
-    as5600_initialize();
-    if (AS5600_exists) {
-      Output (F("WS:Enabled"));
+    if (cf_nowind) {
+      Output (F("WIND:DISABLED"));
+    }
+    else {
+      Output (F("WIND:ENABLED"));
+      as5600_initialize();
       // Optipolar Hall Effect Sensor SS451A - Wind Speed
+      pinMode(ANEMOMETER_IRQ_PIN, INPUT);
       anemometer_interrupt_count = 0;
       anemometer_interrupt_stime = millis();
       attachInterrupt(ANEMOMETER_IRQ_PIN, anemometer_interrupt_handler, FALLING);
@@ -476,6 +486,10 @@ void setup() {
   if (!MUX_exists) {
     tsm_initialize(); // Check main bus
   }
+
+  // Scan Dallas 1-Wire Mux for temperature sensors
+  dsmux_initialize();
+
   bmx_initialize();
   htu21d_initialize();
   mcp9808_initialize();

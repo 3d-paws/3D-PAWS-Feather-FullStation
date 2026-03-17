@@ -8,9 +8,10 @@
 #include <RTClib.h>
 
 #include "include/ssbits.h"
-#include "include/mux.h"
 #include "include/eeprom.h"
 #include "include/cf.h"
+#include "include/mux.h"
+#include "include/dsmux.h"
 #include "include/sensors.h"
 #include "include/wrda.h"
 #include "include/sdcard.h"
@@ -83,12 +84,12 @@ void INFO_Do_WiFi() {
   sprintf (msg+strlen(msg), ",\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0WiFi\"", // Adafruit Feather M0 WiFi
     timestamp, DeviceID);
 
-  sprintf (msg+strlen(msg), ",\"ver\":\"%s\",\"lwr\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d",
+  sprintf (msg+strlen(msg), ",\"ver\":\"%s\",\"lwr\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d,\"rtro\":%d",
     versioninfo, 
     LW_Region(), // LW Region: EU868 US915 ...
                  // Even though we are running on a WiFi board. Good to know what Region we are compiled for.
     (int)vbat, (int)(vbat*100)%100, 
-    SystemStatusBits, cf_elevation);
+    SystemStatusBits, cf_elevation, cf_rtro);
 
   // Log Server Information and Chords Apikey and Id
   sprintf (msg+strlen(msg), ",\"ls\":\"%s\",\"lsp\":%d,\"lsurl\":\"%s\",\"lsapi\":\"%s\",\"lsid\":%d",
@@ -108,6 +109,14 @@ void INFO_Do_WiFi() {
   // Discovered Device List
   comma="";
   sprintf (msg+strlen(msg), ",\"devs\":\"");
+  if (RTC_exists) {
+    sprintf (msg+strlen(msg), "%srtc", comma);
+    comma=",";
+  }
+  if (SD_exists) {
+    sprintf (msg+strlen(msg), "%ssd", comma);
+    comma=",";
+  }
   if (eeprom_exists) {
     sprintf (msg+strlen(msg), "%seeprom", comma);
     comma=",";    
@@ -116,9 +125,12 @@ void INFO_Do_WiFi() {
     sprintf (msg+strlen(msg), "%smux", comma);
     comma=",";    
   }
-  if (SD_exists) {
-    sprintf (msg+strlen(msg), "%ssd", comma);
-    comma=",";
+  if (DSMUX_exists) {
+    sprintf (msg+strlen(msg), "%sdsmux", comma);
+    comma=",";    
+  }
+  if (oled_type) {
+    sprintf (msg+strlen(msg), ",oled(%s)", OLED32 ? "32" : "64");  
   }
   if (gps_exists) {
     sprintf (msg+strlen(msg), "%sgps", comma);
@@ -144,8 +156,6 @@ void INFO_Do_WiFi() {
 
   // MUX SENSORS  
   if (MUX_exists) {
-    comma="";
-    sprintf (msg+strlen(msg), ",\"mux\":\"");
     for (int c=0; c<MUX_CHANNELS; c++) {
       if (mux[c].inuse) {
         for (int s = 0; s < MAX_CHANNEL_SENSORS; s++) {
@@ -156,8 +166,27 @@ void INFO_Do_WiFi() {
         }
       }
     }
-    // Close off mux sensors
-    sprintf (msg+strlen(msg), "\"");
+  }
+
+  // DSMUX Temperature Sensors  
+  if (DSMUX_exists) {
+    sprintf (msg+strlen(msg), "%sDST(", comma);
+    
+    int count=0;
+    const char *comma1="";
+    for (int c=0; c<DS248X_CHANNELS; c++) {
+      if (dsmux_sensor_exists[c]) {
+        count++;
+        sprintf (msg+strlen(msg), "%s%d", comma1, c);
+        comma1=",";
+      }
+    }
+    if (count) {
+      sprintf (msg+strlen(msg), ")");
+    }
+    else {
+      sprintf (msg+strlen(msg), "NF)");
+    }
   }
 
   // SENSORS
@@ -230,10 +259,21 @@ void INFO_Do_WiFi() {
     sprintf (msg+strlen(msg), "%sBLX", comma);
     comma=",";
   }
-  if (AS5600_exists) {
-    sprintf (msg+strlen(msg), "%sAS5600", comma);
+  if (cf_nowind) {
+    sprintf (msg+strlen(msg), "%s!WIND", comma);
+    comma=",";
+  }
+  else {
+    sprintf (msg+strlen(msg), "%sWIND", comma);
     comma=",";
     sprintf (msg+strlen(msg), "%sWS(%s)", comma, pinNames[ANEMOMETER_IRQ_PIN]);
+
+    if (AS5600_exists) {
+      sprintf (msg+strlen(msg), "%sAS5600", comma);
+    }
+    else {
+      sprintf (msg+strlen(msg), "%s!AS5600", comma);
+    }
   }
   if (TLW_exists) {
     sprintf (msg+strlen(msg), "%sTLW", comma);
@@ -398,10 +438,10 @@ void INFO_Do_LoRaWAN() {
   //                                               sum = 201 bytes
 
   // AFM0LoRa = Adafruit Feather M0 LoRa
-  sprintf (msg, "\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0LoRa\",\"ver\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d",
+  sprintf (msg, "\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0LoRa\",\"ver\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d,\"rtro\":%d",
     timestamp, DeviceID, versioninfo, 
     (int)vbat, (int)(vbat*100)%100,
-    SystemStatusBits, cf_elevation);
+    SystemStatusBits, cf_elevation, cf_rtro);
   
   // obs_period (1,5,6,10,15,20,30), 1 minute observation period is the default
   // daily_reboot Number of hours between daily reboots, A value of 0 disables this feature
@@ -452,6 +492,14 @@ void INFO_Do_LoRaWAN() {
   // Discovered Device List
   comma="";
   sprintf (msg+strlen(msg), ",\"devs\":\"");
+  if (RTC_exists) {
+    sprintf (msg+strlen(msg), "%srtc", comma);
+    comma=",";
+  }
+  if (SD_exists) {
+    sprintf (msg+strlen(msg), "%ssd", comma);
+    comma=",";
+  }
   if (eeprom_exists) {
     sprintf (msg+strlen(msg), "%seeprom", comma);
     comma=",";    
@@ -460,14 +508,17 @@ void INFO_Do_LoRaWAN() {
     sprintf (msg+strlen(msg), "%smux", comma);
     comma=",";    
   }
-  if (SD_exists) {
-    sprintf (msg+strlen(msg), "%ssd", comma);
-    comma=",";
+  if (DSMUX_exists) {
+    sprintf (msg+strlen(msg), "%sdsmux", comma);
+    comma=",";    
+  }
+  if (oled_type) {
+    sprintf (msg+strlen(msg), ",oled(%s)", OLED32 ? "32" : "64");  
   }
   if (gps_exists) {
     sprintf (msg+strlen(msg), "%sgps(%s)", comma, (gps_valid) ? "1" : "0");
     comma=","; 
-  } 
+  }
   sprintf (msg+strlen(msg), "\""); 
 
   if (gps_exists && gps_valid) {
@@ -478,8 +529,6 @@ void INFO_Do_LoRaWAN() {
 
   // MUX SENSORS  
   if (MUX_exists) {
-    comma="";
-    sprintf (msg+strlen(msg), ",\"mux\":\"");
     for (int c=0; c<MUX_CHANNELS; c++) {
       if (mux[c].inuse) {
         for (int s = 0; s < MAX_CHANNEL_SENSORS; s++) {
@@ -490,8 +539,27 @@ void INFO_Do_LoRaWAN() {
         }
       }
     }
-    // Close off mux sensors
-    sprintf (msg+strlen(msg), "\"");
+  }
+
+  // DSMUX Temperature Sensors  
+  if (DSMUX_exists) {
+    sprintf (msg+strlen(msg), "%sDST(", comma);
+    
+    int count=0;
+    const char *comma1="";
+    for (int c=0; c<DS248X_CHANNELS; c++) {
+      if (dsmux_sensor_exists[c]) {
+        count++;
+        sprintf (msg+strlen(msg), "%s%d", comma1, c);
+        comma1=",";
+      }
+    }
+    if (count) {
+      sprintf (msg+strlen(msg), ")");
+    }
+    else {
+      sprintf (msg+strlen(msg), "NF)");
+    }
   }
 
   // Tally it all up
@@ -610,10 +678,21 @@ void INFO_Do_LoRaWAN() {
     sprintf (msg+strlen(msg), "%sBLX", comma);
     comma=",";
   }
-  if (AS5600_exists) {
-    sprintf (msg+strlen(msg), "%sAS5600", comma);
+  if (cf_nowind) {
+    sprintf (msg+strlen(msg), "%s!WIND", comma);
+    comma=",";
+  }
+  else {
+    sprintf (msg+strlen(msg), "%sWIND", comma);
     comma=",";
     sprintf (msg+strlen(msg), "%sWS(%s)", comma, pinNames[ANEMOMETER_IRQ_PIN]);
+
+    if (AS5600_exists) {
+      sprintf (msg+strlen(msg), "%sAS5600", comma);
+    }
+    else {
+      sprintf (msg+strlen(msg), "%s!AS5600", comma);
+    }
   }
   if (TLW_exists) {
     sprintf (msg+strlen(msg), "%sTLW", comma);

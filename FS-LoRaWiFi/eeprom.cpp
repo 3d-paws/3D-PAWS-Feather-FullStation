@@ -8,6 +8,7 @@
 
 #include "include/ssbits.h"
 #include "include/qc.h"
+#include "include/cf.h"
 #include "include/main.h"
 #include "include/output.h"
 #include "include/sdcard.h"
@@ -125,22 +126,22 @@ void EEPROM_Validate() {
     }
   }
   else {
-    uint32_t seconds_today        = current_time % 86400;
-    uint32_t seconds_at_0000      = current_time - seconds_today;
-    uint32_t seconds_at_0600      = seconds_at_0000 + 21600;
-    uint32_t seconds_yesterday_at_0600 = seconds_at_0600 - 86400;
+    uint32_t seconds_today                 = current_time % 86400;
+    uint32_t seconds_at_0000               = current_time - seconds_today;
+    uint32_t seconds_at_rollover           = seconds_at_0000 + (cf_rtro * 3600);
+    uint32_t seconds_yesterday_at_rollover = seconds_at_rollover - 86400;
 
     // RT = Rain Total
-    if ((current_time > seconds_at_0600) && (eeprom.rgts > seconds_at_0600)) {
+    if ((current_time > seconds_at_rollover) && (eeprom.rgts > seconds_at_rollover)) {
       // If current time is after 6am and RT time is after 6am  - update RT time.
       Output("T>6, RT>6 - OK");
       eeprom.rgts = current_time;
       EEPROM_ChecksumUpdate();
       eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));          
     }
-    else if ((current_time > seconds_at_0600) && (eeprom.rgts <= seconds_at_0600) && (eeprom.rgts > seconds_yesterday_at_0600)){
+    else if ((current_time > seconds_at_rollover) && (eeprom.rgts <= seconds_at_rollover) && (eeprom.rgts > seconds_yesterday_at_rollover)){
       // if current time is after 6am and RT time is before 6am and after yesterday at 6am -  move today's totals to yesterday
-      if (eeprom.rgts > seconds_yesterday_at_0600) {
+      if (eeprom.rgts > seconds_yesterday_at_rollover) {
         Output("T>6, RT<=6 &&  RT>6Y- Move");  
         eeprom.rgp1 = eeprom.rgt1;
         eeprom.rgt1 = 0.0;
@@ -158,13 +159,13 @@ void EEPROM_Validate() {
     }
     else { // current time is before 6AM
       // if current time is before 6am and RT time is before 6am and after yesterday at 6am - update RT time
-      if (eeprom.rgts > seconds_yesterday_at_0600) {
+      if (eeprom.rgts > seconds_yesterday_at_rollover) {
         Output("T<6, RT<6 & RT>6 Yesterday - OK");
         eeprom.rgts = current_time;
         EEPROM_ChecksumUpdate();
         eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));          
       }
-      else if (eeprom.rgts > (seconds_yesterday_at_0600 - 84600)) { 
+      else if (eeprom.rgts > (seconds_yesterday_at_rollover - 84600)) { 
         // if current time is before 6am and RT time after 6am 2 days ago - move current total to yesterday
         Output("T<6, RT<6 && RT>6-2d - Move");  
         eeprom.rgp1 = eeprom.rgt1;
@@ -193,10 +194,12 @@ void EEPROM_Validate() {
  */
 void EEPROM_UpdateRainTotals(float rgt1, float rgt2) {
   if (eeprom_valid) {
-    uint32_t current_time     = rtc_unixtime();
-    uint32_t seconds_at_0600  = current_time - (current_time % 86400) + 21600; // time - seconds so far today + seconds to 0600
+    uint32_t current_time        = rtc_unixtime();;
+    uint32_t seconds_today       = current_time % 86400;
+    uint32_t seconds_at_0000     = current_time - seconds_today;
+    uint32_t seconds_at_rollover = seconds_at_0000 + (cf_rtro * 3600);
 
-    if ((current_time > seconds_at_0600) && (eeprom.rgts <= seconds_at_0600)) {
+    if ((current_time > seconds_at_rollover) && (eeprom.rgts <= seconds_at_rollover)) {
       // if rgts is before 0600 then we need to move today's totals to prior day
       eeprom.rgp1 = eeprom.rgt1;
       eeprom.rgp2 = eeprom.rgt2;
