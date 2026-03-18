@@ -121,7 +121,7 @@ ds_baseline=0
 # elevation used for MSLP
 elevation=0
 
-# Rain Total Rollover Offset from 0 UTC- Valuse of (0 to 23) valid
+# Rain Total Rollover Offset from 0 UTC, Valid values are (-12 to 12).
 rtro=0
 
 #################################################

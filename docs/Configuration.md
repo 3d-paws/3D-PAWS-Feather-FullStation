@@ -91,9 +91,10 @@ lw_appskey=0123456789ABCDEF01234567890ABCDE
 #################################################
 # General Configurations Settings
 #################################################
-# Observation Period (1,5,6,10,15,20,30)
-# 1 minute observation period is the default
-obs_period=1
+# No Wind
+# 0 = wind data
+# 1 = no wind data
+nowind=0
 
 # Rain Gauge (rg1) - pin A3
 # Options 0,1
@@ -116,12 +117,22 @@ op2=0
 # Distance sensor baseline. If positive, distance = baseline - ds_median
 ds_baseline=0
 
+# elevation used for MSLP
+elevation=0
+
+# Rain Total Rollover Offset from 0 UTC, Valid values are (-12 to 12).
+rtro=0
+
+#################################################
+# System Timing
+#################################################
+# Observation Period (1,5,6,10,15,20,30)
+# 1 minute observation period is the default
+obs_period=1
+
 # Number of hours between daily reboots
 # A value of 0 disables this feature
 daily_reboot=22
-
-# elevation used for MSLP
-elevation=0
 ```
 
 ### At initialization:

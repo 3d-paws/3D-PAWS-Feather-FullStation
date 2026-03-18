@@ -52,7 +52,7 @@ rem Check if COM port exists
 mode %COM_PORT% 
 echo Using %COM_PORT%
 cd %SCRIPT_DIR%
-bossac.exe -i -d --port=%COM_PORT% -U -i --offset=0x2000 -w -v FS-LoRaWiFi_US -R
+bossac.exe -i -d --port=%COM_PORT% -U -i --offset=0x2000 -w -v FS-LoRaWiFi_US.bin -R
 pause
 endlocal
 

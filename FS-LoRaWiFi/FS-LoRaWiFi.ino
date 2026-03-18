@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-260304"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-260317"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
@@ -90,10 +90,11 @@
  *                    lps_initialize();
  *                    Bug Wind_Distance_Air_Initialize() has bit OR not logic OR
  *     2026-03-04 RJB Info WiFi now reports LoRaWAN region (lwr)  
- *     2026-03-16 RJB Bug fix in statmon.cpp BMX identification
+ *     2026-03-17 RJB Bug fix in statmon.cpp BMX identification
  *                    Added DSMUX 1-Wire support for 8 temperature sensors dst0-7
  *                    Added pinmode INPUT to wind rain OP1, and OP2
- *                    Added support to set rain total rollover   
+ *                    Added support to set rain total rollover
+ *                    Allowed rtro range changed to -12 to 12  
  *     
  *  Future Note - Support Chords and Google Big Query
  *    OBS.h line 212 will need to be modified

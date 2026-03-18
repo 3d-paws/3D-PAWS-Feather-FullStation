@@ -1,5 +1,12 @@
 # Serial Monitor
 [←Top](../README.md)<BR>
+Adding a jumper wire between pin D12 and ground will enable serial text output on the USB port at boot time.
+
+A serial monitor from Arduino's IDE can be used. TIP: With the Arduino serial monitor. Select "Both NL & CR" on the pull down menu at the bottom.  Also you should select the board type under tools. On a Mac with Visual Studio installed with Particle's Development Environment; the shell command "particle serial monitor" can be used.
+
+Upon boot with the jumper wire connected, software will wait 60 seconds for you to connect the serial monitor. Flashing the board led.  After 60 seconds the software will continue the boot process. Below is an example of what you might see as the software initializes and discovers connected devices.
+
+If the jumper remains connected after boot. You will enter the Station Monitor. The station monitor will run for 30 minutes. Removing the jumper will exit you from the station monitor.
 
 WiFi Example Start Up output
 ```

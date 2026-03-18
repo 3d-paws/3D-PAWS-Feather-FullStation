@@ -395,7 +395,7 @@ void SD_ReadConfigFile() {
   sprintf(msgbuf, "%s:obs_period=[%d]", F("CF:obs_period"), cf_obs_period); Output (msgbuf);
 
   int cf_rtro = SD_findInt(F("rtro"));
-  if ((cf_rtro < 0) || (cf_rtro > 23)){
+  if ((cf_rtro < -12) || (cf_rtro > 12)){
     cf_rtro = 0;
   }
   sprintf(msgbuf, "CF:%s=[%d]", F("cf_rtro"), cf_rtro); Output (msgbuf);
