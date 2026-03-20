@@ -56,7 +56,7 @@ bool ws_refresh = false;           // Set to true when we have delayed too long 
  *  Optipolar Hall Effect Sensor SS451A - Interrupt 1 - Anemometer
  * ======================================================================================================================
  */
-volatile unsigned int anemometer_interrupt_count;
+volatile unsigned int anemometer_interrupt_count=0;
 unsigned long anemometer_interrupt_stime;
 
 /*
@@ -64,7 +64,7 @@ unsigned long anemometer_interrupt_stime;
  *  Rain Gauge 1 - Optipolar Hall Effect Sensor SS451A
  * ======================================================================================================================
  */
-volatile unsigned int raingauge1_interrupt_count;
+volatile unsigned int raingauge1_interrupt_count=0;
 uint64_t raingauge1_interrupt_stime; // Send Time
 uint64_t raingauge1_interrupt_ltime; // Last Time
 uint64_t raingauge1_interrupt_toi;   // Time of Interrupt
@@ -74,7 +74,7 @@ uint64_t raingauge1_interrupt_toi;   // Time of Interrupt
  *  Rain Gauge 2 - Optipolar Hall Effect Sensor SS451A
  * ======================================================================================================================
  */
-volatile unsigned int raingauge2_interrupt_count;
+volatile unsigned int raingauge2_interrupt_count=0;
 uint64_t raingauge2_interrupt_stime; // Send Time
 uint64_t raingauge2_interrupt_ltime; // Last Time
 uint64_t raingauge2_interrupt_toi;   // Time of Interrupt

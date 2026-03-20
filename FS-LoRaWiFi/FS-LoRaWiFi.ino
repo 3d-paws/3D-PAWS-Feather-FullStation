@@ -95,6 +95,7 @@
  *                    Added pinmode INPUT to wind rain OP1, and OP2
  *                    Added support to set rain total rollover
  *                    Allowed rtro range changed to -12 to 12  
+ *     2026-03-20 RJB Modified EEPROM_UpdateRainTotals() to only update eeprom on change.
  *     
  *  Future Note - Support Chords and Google Big Query
  *    OBS.h line 212 will need to be modified

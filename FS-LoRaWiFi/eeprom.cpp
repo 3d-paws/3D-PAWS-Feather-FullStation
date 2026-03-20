@@ -133,16 +133,16 @@ void EEPROM_Validate() {
 
     // RT = Rain Total
     if ((current_time > seconds_at_rollover) && (eeprom.rgts > seconds_at_rollover)) {
-      // If current time is after 6am and RT time is after 6am  - update RT time.
-      Output("T>6, RT>6 - OK");
+      // If current time is after rollover and RT time is after rollover - update RT time.
+      Output("T>RO, RT>RO - OK");
       eeprom.rgts = current_time;
       EEPROM_ChecksumUpdate();
       eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));          
     }
     else if ((current_time > seconds_at_rollover) && (eeprom.rgts <= seconds_at_rollover) && (eeprom.rgts > seconds_yesterday_at_rollover)){
-      // if current time is after 6am and RT time is before 6am and after yesterday at 6am -  move today's totals to yesterday
+      // if current time is after rollover and RT time is before rollover and after yesterday at rollover -  move today's totals to yesterday
       if (eeprom.rgts > seconds_yesterday_at_rollover) {
-        Output("T>6, RT<=6 &&  RT>6Y- Move");  
+        Output("T>RO, RT<=RO &&  RT>ROY- Move");  
         eeprom.rgp1 = eeprom.rgt1;
         eeprom.rgt1 = 0.0;
         eeprom.rgp2 = eeprom.rgt2;
@@ -152,22 +152,22 @@ void EEPROM_Validate() {
         eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));
       }
       else {
-        // if current time is after 6am and RT time is before 6am and before yesterday at 6am - EEPROM has no valid data - clear EEPROM
-        Output("T>6, RT<6 Yesterday - Clear");
+        // if current time is after rollover and RT time is before rollover and before yesterday at rollover - EEPROM has no valid data - clear EEPROM
+        Output("T>RO, RT<RO Yesterday - Clear");
         EEPROM_ClearRainTotals(current_time);
       }
     }
     else { // current time is before 6AM
-      // if current time is before 6am and RT time is before 6am and after yesterday at 6am - update RT time
+      // if current time is before rollover and RT time is before rollover and after yesterday at rollover - update RT time
       if (eeprom.rgts > seconds_yesterday_at_rollover) {
-        Output("T<6, RT<6 & RT>6 Yesterday - OK");
+        Output("T<RO, RT<RO & RT>RO Yesterday - OK");
         eeprom.rgts = current_time;
         EEPROM_ChecksumUpdate();
         eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));          
       }
       else if (eeprom.rgts > (seconds_yesterday_at_rollover - 84600)) { 
-        // if current time is before 6am and RT time after 6am 2 days ago - move current total to yesterday
-        Output("T<6, RT<6 && RT>6-2d - Move");  
+        // if current time is before rollover and RT time after rollover 2 days ago - move current total to yesterday
+        Output("T<RO, RT<RO && RT>RO-2d - Move");  
         eeprom.rgp1 = eeprom.rgt1;
         eeprom.rgt1 = 0.0;
         eeprom.rgp2 = eeprom.rgt2;
@@ -177,8 +177,8 @@ void EEPROM_Validate() {
         eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));
       }
       else {
-        // if current time is before 6am and RT time before 6am 2 days ago - EEPROM has no valid data - clear EEPROM
-        Output("T<6, RT<6 && RT<=6-2d - Clear");  
+        // if current time is before rollover and RT time before rollover 2 days ago - EEPROM has no valid data - clear EEPROM
+        Output("T<RO, RT<RO && RT<=RO-2d - Clear");  
         EEPROM_ClearRainTotals(current_time);
       }
     }
@@ -194,31 +194,41 @@ void EEPROM_Validate() {
  */
 void EEPROM_UpdateRainTotals(float rgt1, float rgt2) {
   if (eeprom_valid) {
+    bool update=false;
+
     uint32_t current_time        = rtc_unixtime();;
     uint32_t seconds_today       = current_time % 86400;
     uint32_t seconds_at_0000     = current_time - seconds_today;
     uint32_t seconds_at_rollover = seconds_at_0000 + (cf_rtro * 3600);
 
+    // If no rain in 24 hours. Then rgts will be time of last rollover. 
+    // Or rgts will be the eeprom initialized time.
+    // if rgts is before rollover then we need to move today's totals to prior day
     if ((current_time > seconds_at_rollover) && (eeprom.rgts <= seconds_at_rollover)) {
-      // if rgts is before 0600 then we need to move today's totals to prior day
       eeprom.rgp1 = eeprom.rgt1;
-      eeprom.rgp2 = eeprom.rgt2;
       eeprom.rgt1 = 0;
+
+      eeprom.rgp2 = eeprom.rgt2;
       eeprom.rgt2 = 0;
+      update=true;
     }
 
     // Only add valid rain to the total
     if (rgt1>0.0) {
       eeprom.rgt1 += rgt1;
+      update=true;
     }
     if (rgt2>0.0) {
       eeprom.rgt2 += rgt2;
+      update=true;
     }
 
-    eeprom.rgts = current_time;
-    EEPROM_ChecksumUpdate();
-    eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));
-    Output("EEPROM RT UPDATED");
+    if (update) {
+      eeprom.rgts = current_time;
+      EEPROM_ChecksumUpdate();
+      eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));
+      Output("EEPROM RT UPDATED");
+    }
   }
 }
 
@@ -230,12 +240,15 @@ void EEPROM_UpdateRainTotals(float rgt1, float rgt2) {
 void EEPROM_SaveUnreportedRain() {
   if (raingauge1_interrupt_count || raingauge2_interrupt_count) {
     unsigned long rgds;     // rain gauge delta seconds, seconds since last rain gauge observation logged
+    
     float rain1 = raingauge1_interrupt_count * 0.2;
-    float rain2 = raingauge2_interrupt_count * 0.2;
     rgds = (millis()-raingauge1_interrupt_stime)/1000;  // seconds since last rain gauge observation logged
     rain1 = (isnan(rain1) || (rain1 < QC_MIN_RG) || (rain1 > ((rgds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rain1;
+
+    float rain2 = raingauge2_interrupt_count * 0.2;
     rgds = (millis()-raingauge2_interrupt_stime)/1000;  // seconds since last rain gauge observation logged
     rain2 = (isnan(rain2) || (rain2 < QC_MIN_RG) || (rain2 > ((rgds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rain2;
+    
     EEPROM_UpdateRainTotals(rain1, rain2);
   }
 }
