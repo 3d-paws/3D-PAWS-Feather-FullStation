@@ -342,7 +342,7 @@ void OBS_Take() {
       rg2 = (isnan(rg2) || (rg2 < QC_MIN_RG) || (rg2 > (((float)rg2ds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rg2;
     }
 
-    if (cf_rg1_enable || (cf_op1 == OP1_STATE_RAIN)) {
+    if (RainEnabled()) {
       EEPROM_UpdateRainTotals(rg1, rg2);
     }
  

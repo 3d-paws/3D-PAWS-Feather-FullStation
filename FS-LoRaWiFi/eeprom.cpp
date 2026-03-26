@@ -4,6 +4,7 @@
  * ======================================================================================================================
  */
 #include <Adafruit_EEPROM_I2C.h>
+#include <FlashAsEEPROM.h> // https://github.com/khoih-prog/FlashStorage_SAMD
 #include <RTClib.h>
 
 #include "include/ssbits.h"
@@ -107,6 +108,30 @@ void EEPROM_ClearRainTotals(uint32_t current_time) {
 
 /* 
  *=======================================================================================================================
+ * EEPROM_TimeToRollOver() - 
+ *=======================================================================================================================
+ */
+bool EEPROM_TimeToRollOver() {
+  if (RainEnabled() && eeprom_valid) {
+    uint32_t current_time        = rtc_unixtime();
+    uint32_t seconds_today       = current_time % 86400;
+    uint32_t seconds_at_0000     = current_time - seconds_today;
+    uint32_t seconds_at_rollover = seconds_at_0000 + (cf_rtro_hour * 3600) + (cf_rtro_minute * 60);
+
+    // If no rain in 24 hours. Then rgts will be time of last rollover. 
+    // Or rgts will be the eeprom initialized time.
+    // if rgts is before rollover then we need to move today's totals to prior day
+    // Work with in memory copy of eeprom rain gauge time stamp
+    if ((current_time > seconds_at_rollover) && (eeprom.rgts <= seconds_at_rollover)) {
+      Output ("RollOverTime");
+      return (true);
+    }
+  }
+  return (false);
+}
+
+/* 
+ *=======================================================================================================================
  * EEPROM_Validate() - Check status of EEPROM information and determine status
  *                       Requires system clock to be valid
  *=======================================================================================================================
@@ -128,7 +153,7 @@ void EEPROM_Validate() {
   else {
     uint32_t seconds_today                 = current_time % 86400;
     uint32_t seconds_at_0000               = current_time - seconds_today;
-    uint32_t seconds_at_rollover           = seconds_at_0000 + (cf_rtro * 3600);
+    uint32_t seconds_at_rollover           = seconds_at_0000 + (cf_rtro_hour * 3600) + (cf_rtro_minute * 60);
     uint32_t seconds_yesterday_at_rollover = seconds_at_rollover - 86400;
 
     // RT = Rain Total
@@ -196,10 +221,10 @@ void EEPROM_UpdateRainTotals(float rgt1, float rgt2) {
   if (eeprom_valid) {
     bool update=false;
 
-    uint32_t current_time        = rtc_unixtime();;
+    uint32_t current_time        = rtc_unixtime();
     uint32_t seconds_today       = current_time % 86400;
     uint32_t seconds_at_0000     = current_time - seconds_today;
-    uint32_t seconds_at_rollover = seconds_at_0000 + (cf_rtro * 3600);
+    uint32_t seconds_at_rollover = seconds_at_0000 + (cf_rtro_hour * 3600) + (cf_rtro_minute * 60);
 
     // If no rain in 24 hours. Then rgts will be time of last rollover. 
     // Or rgts will be the eeprom initialized time.

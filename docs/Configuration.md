@@ -120,7 +120,20 @@ ds_baseline=0
 # elevation used for MSLP
 elevation=0
 
-# Rain Total Rollover Offset from 0 UTC, Valid values are (-12 to 12).
+# Rain Total Rollover Offset from 0 UTC
+# Set rtro to the UTC hour when your Rain Total Rollover action should occur.
+#
+# - Find your UTC offset (e.g., Denver MDT = -6, Kenya = +3)
+# - Calculate: RTRO = Local_Hour - UTC_Offset
+# - Use 0-23 range (if negative, add 24)
+#
+# Example: Set roll over to be at Midnight local time. 
+# - Denver midnight MDT: 0 - (-6) = 6 
+# - Kenya 6 AM:          6 - 3 = 3 
+# - Sydney 8 AM AEDT:    8 - 11 = -3 + 24 = 21 
+# - UTC midnight:        0 - 0 = 0
+#
+# rtro=H(:MM) - valid values are where H = (0-23) with optional ":" and MM = (00,15,30,45)
 rtro=0
 
 #################################################

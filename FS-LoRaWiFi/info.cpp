@@ -84,7 +84,7 @@ void INFO_Do_WiFi() {
   sprintf (msg+strlen(msg), ",\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0WiFi\"", // Adafruit Feather M0 WiFi
     timestamp, DeviceID);
 
-  sprintf (msg+strlen(msg), ",\"ver\":\"%s\",\"lwr\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d,\"rtro\":%d",
+  sprintf (msg+strlen(msg), ",\"ver\":\"%s\",\"lwr\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d,\"rtro\":\"%s\"",
     versioninfo, 
     LW_Region(), // LW Region: EU868 US915 ...
                  // Even though we are running on a WiFi board. Good to know what Region we are compiled for.
@@ -438,7 +438,7 @@ void INFO_Do_LoRaWAN() {
   //                                               sum = 201 bytes
 
   // AFM0LoRa = Adafruit Feather M0 LoRa
-  sprintf (msg, "\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0LoRa\",\"ver\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d,\"rtro\":%d",
+  sprintf (msg, "\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0LoRa\",\"ver\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d,\"rtro\":\"%s\"",
     timestamp, DeviceID, versioninfo, 
     (int)vbat, (int)(vbat*100)%100,
     SystemStatusBits, cf_elevation, cf_rtro);

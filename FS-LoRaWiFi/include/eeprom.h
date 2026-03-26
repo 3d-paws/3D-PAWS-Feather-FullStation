@@ -32,6 +32,7 @@ void EEPROM_ChecksumUpdate();
 bool EEPROM_ChecksumValid();
 void EEPROM_ClearRainTotals(uint32_t current_time);
 void EEPROM_ClearRain2Totals();
+bool EEPROM_TimeToRollOver();
 void EEPROM_Validate();
 void EEPROM_UpdateRainTotals(float rgt1, float rgt2);
 void EEPROM_SaveUnreportedRain();

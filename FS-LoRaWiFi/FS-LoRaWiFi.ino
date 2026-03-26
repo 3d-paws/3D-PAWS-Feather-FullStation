@@ -629,7 +629,7 @@ void loop() {
     }
     
     // Perform an Observation, Write to SD, Send OBS
-    if (millis() >= Time_of_next_obs) {
+    if (millis() >= Time_of_next_obs || EEPROM_TimeToRollOver()) {
       Output (F("Do OBS"));
       
       now = rtc.now();

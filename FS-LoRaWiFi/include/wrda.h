@@ -109,6 +109,7 @@ void anemometer_interrupt_handler();
 void raingauge1_interrupt_handler();
 void raingauge2_interrupt_handler();
 
+bool RainEnabled();
 float Wind_SampleSpeed();
 int Wind_SampleDirection();
 int Wind_DirectionVector();
