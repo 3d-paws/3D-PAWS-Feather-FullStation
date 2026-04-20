@@ -18,6 +18,7 @@
 #include "include/lorawan.h"
 #include "include/support.h"
 #include "include/time.h"
+#include "include/sensors_i2c_44_47.h"
 #include "include/sensors.h"
 #include "include/main.h"
 #include "include/obs.h"
@@ -30,46 +31,13 @@
 OBSERVATION_STR obs;
 char obsbuf[MAX_OBS_SIZE];      // Url that holds observations for HTTP GET
 char *obsp;                     // Pointer to obsbuf
+float bmx_1_pressure = 0.0;
 
 /*
  * ======================================================================================================================
  * Fuction Definations
  * =======================================================================================================================
  */
-
-/*
- * ======================================================================================================================
- * SendMsg() - Send Observation or Information, return result status
- * ======================================================================================================================
- */
-int SendMsg(char *msg)
-{
-  // Handle LoRaWAN
-  if (LW_valid) {
-    if (LW_Send(msg)) {
-      return(1);
-    }
-    else {
-      return(0);
-    }
-  }
-
-  // Handle WiFi can retutn 0=not sent, -500=ErrorCode Not Sent, 1=Sent
-  else if (WiFi_valid) {
-    // Determine the type of message and which server to send to INFO or OBS
-    if (strstr(msg, "\"MT\":\"INFO\"") != NULL) {
-      return (WiFi_Send(msg, cf_info_server, cf_info_server_port, cf_info_urlpath, METHOD_POST, cf_info_apikey));
-    }
-    else {
-      return (WiFi_Send(msg, cf_webserver, cf_webserver_port, cf_urlpath, METHOD_GET, cf_apikey));
-    }
-  }
-  
-  else {
-    Output("No Valid Network");
-    return (0);   
-  }
-}
 
 /*
  * ======================================================================================================================
@@ -85,10 +53,10 @@ void OBS_Clear() {
 
 /*
  * ======================================================================================================================
- * OBS_N2S_Add() - Save OBS to N2S file
+ * OBS_N2S_Add_WiFi() - Save OBS to N2S file
  * ======================================================================================================================
  */
-void OBS_N2S_Add() {
+void OBS_N2S_Add_WiFi() {
   if (obs.inuse) {     // Sanity check
     char ts[32];
    
@@ -97,35 +65,20 @@ void OBS_N2S_Add() {
     // Modify System Status and Set From Need to Send file bit
     obs.hth |= SSB_FROM_N2S; // Turn On Bit
 
-    // If WiFi add additional itemslike Chords url.
-    if (WiFi_valid) {
-      tm *dt = gmtime(&obs.ts);
-      sprintf (obsbuf, "%s?key=%s&instrument_id=%d&",
-        cf_urlpath, cf_apikey, cf_instrument_id, DeviceID);
-      sprintf (obsbuf+strlen(obsbuf), "devid=%s&at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
-        DeviceID,
-        dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
-        dt->tm_hour, dt->tm_min, dt->tm_sec);
-      sprintf (obsbuf+strlen(obsbuf), "&bv=%d.%02d",
-       (int)obs.bv, (int)(obs.bv*100)%100); 
-      sprintf (obsbuf+strlen(obsbuf), "&hth=%d", obs.hth);
-    }
-    else {
-      // Do not send device id for LoraWAN, use LoRa ID to identify device
-      // ABP mode: lw_devaddr, OTAA: lw_deveui 
-      // Time as hex = 8 bytes, verses 18 bytes
-      sprintf (obsbuf, "at=%08X", (uint32_t) obs.ts);
-      sprintf (obsbuf+strlen(obsbuf), "&v=%d.%02d",
-       (int)obs.bv, (int)(obs.bv*100)%100); 
-      sprintf (obsbuf+strlen(obsbuf), "&h=%d", obs.hth);
-    }
+    tm *dt = gmtime(&obs.ts);
+    sprintf (obsbuf, "%s?key=%s&instrument_id=%d&",
+      cf_urlpath, cf_apikey, cf_instrument_id);
+    sprintf (obsbuf+strlen(obsbuf), "devid=%s&at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
+      DeviceID,
+      dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
+      dt->tm_hour, dt->tm_min, dt->tm_sec);
+    sprintf (obsbuf+strlen(obsbuf), "&bv=%.2f",obs.bv); 
+    sprintf (obsbuf+strlen(obsbuf), "&hth=%d", obs.hth);
    
     for (int s=0; s<MAX_SENSORS; s++) {
       if (obs.sensor[s].inuse) {
         switch (obs.sensor[s].type) {
           case F_OBS :
-            // sprintf (obsbuf+strlen(obsbuf), "&%s=%d%%2E%d", obs.sensor[s].id, 
-            //  (int)obs.sensor[s].f_obs,  (int)(obs.sensor[s].f_obs*1000)%1000);
             sprintf (obsbuf+strlen(obsbuf), "&%s=%.1f", obs.sensor[s].id, obs.sensor[s].f_obs);
             break;
           case I_OBS :
@@ -173,7 +126,7 @@ void OBS_LOG_Add() {
       dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
       dt->tm_hour, dt->tm_min, dt->tm_sec);
       
-    sprintf (obsbuf+strlen(obsbuf), ",\"bv\":%d.%02d", (int)obs.bv, (int)(obs.bv*100)%100); 
+    sprintf (obsbuf+strlen(obsbuf), ",\"bv\":%.2f", obs.bv); 
     sprintf (obsbuf+strlen(obsbuf), ",\"hth\":%d", obs.hth);
     
     for (int s=0; s<MAX_SENSORS; s++) {
@@ -207,82 +160,6 @@ void OBS_LOG_Add() {
 
 /*
  * ======================================================================================================================
- * OBS_Build() - Create observation in obsbuf from structure obs for sending
- * 
- * Example at=2022-05-17T17%3A40%3A04&hth=8770 .....
- * ======================================================================================================================
- */
-bool OBS_Build() {  
-  if (obs.inuse) {     // Sanity check  
-    memset(obsbuf, 0, sizeof(obsbuf));
-    tm *dt = gmtime(&obs.ts);
-
-    // If WiFi add additional itemslike Chords url.
-    if (WiFi_valid) {
-      sprintf (obsbuf, "%s?key=%s&instrument_id=%d&devid=%s",
-        cf_urlpath, cf_apikey, cf_instrument_id, DeviceID);
-    }
-    else {
-      // Do not send device id for LoraWAN, use LoRa ID to identify device
-      // ABP mode: lw_devaddr, OTAA: lw_deveui 
-      // Time as hex = 8 bytes, verses 18 bytes
-
-      // The code at IOT website will determine this as a observation.
-      // Add what is necessary to forward to chord
-      sprintf (obsbuf,"");
-    }
-
-    sprintf (obsbuf+strlen(obsbuf), "at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
-      dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
-      dt->tm_hour, dt->tm_min, dt->tm_sec);
-    sprintf (obsbuf+strlen(obsbuf), "&bv=%d.%02d",
-      (int)obs.bv, (int)(obs.bv*100)%100); 
-    sprintf (obsbuf+strlen(obsbuf), "&hth=%d", 
-      obs.hth);  
-
-    for (int s=0; s<MAX_SENSORS; s++) {
-      if (obs.sensor[s].inuse) {
-        switch (obs.sensor[s].type) {
-          case F_OBS :
-            sprintf (obsbuf+strlen(obsbuf), "&%s=%.1f", obs.sensor[s].id, obs.sensor[s].f_obs);
-            break;
-          case I_OBS :
-            sprintf (obsbuf+strlen(obsbuf), "&%s=%d", obs.sensor[s].id, obs.sensor[s].i_obs);
-            break;
-          case U_OBS :
-            sprintf (obsbuf+strlen(obsbuf), "&%s=%u", obs.sensor[s].id, obs.sensor[s].i_obs);
-            break;
-          default : // Should never happen
-            Output ("WhyAmIHere?");
-            break;
-        }
-      }
-    }
-
-    Output("OBSBLD:OK");
-    Serial_writeln (obsbuf);
-    return (true);
-  }
-  else {
-    Output("OBSBLD:INUSE");
-    return (false);
-  }
-}
-
-/*
- * ======================================================================================================================
- * OBS_N2S_Save() - Save Observations to Need2Send File
- * ======================================================================================================================
- */
-void OBS_N2S_Save() {
-
-  // Save Station Observations to N2S file
-  OBS_N2S_Add();
-  OBS_Clear();
-}
-
-/*
- * ======================================================================================================================
  * OBS_Take() - Take Observations - Should be called once a minute - fill data structure
  * ======================================================================================================================
  */
@@ -296,10 +173,7 @@ void OBS_Take() {
   int wd = 0;
   float mcp3_temp = 0.0;  // globe temperature
   float wetbulb_temp = 0.0;
-  float sht1_humid = 0.0;
-  float sht1_temp = 0.0;
   float heat_index = 0.0;
-  float bmx_1_pressure = 0.0;
 
   Output("OBS_TAKE()");
   
@@ -322,24 +196,12 @@ void OBS_Take() {
   if (!AQS_Enabled) {
     // Rain Gauge 1 - Each tip is 0.2mm of rain
     if (cf_rg1_enable) {
-      rg1ds = (millis()-raingauge1_interrupt_stime)/1000;  // seconds since last rain gauge observation logged
-      rg1 = raingauge1_interrupt_count * 0.2;
-      raingauge1_interrupt_count = 0;
-      raingauge1_interrupt_stime = millis();
-      raingauge1_interrupt_ltime = 0; // used to debounce the tip
-      // QC Check - Max Rain for period is (Observations Seconds / 60s) *  Max Rain for 60 Seconds
-      rg1 = (isnan(rg1) || (rg1 < QC_MIN_RG) || (rg1 > (((float)rg1ds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rg1;
+      rg1 = raingauge1_sample();
     }
 
     // Rain Gauge 2 - Each tip is 0.2mm of rain
     if (cf_op1 == OP1_STATE_RAIN) {
-      rg2ds = (millis()-raingauge2_interrupt_stime)/1000;  // seconds since last rain gauge observation logged
-      rg2 = raingauge2_interrupt_count * 0.2;
-      raingauge2_interrupt_count = 0;
-      raingauge2_interrupt_stime = millis();
-      raingauge2_interrupt_ltime = 0; // used to debounce the tip
-      // QC Check - Max Rain for period is (Observations Seconds / 60s) *  Max Rain for 60 Seconds
-      rg2 = (isnan(rg2) || (rg2 < QC_MIN_RG) || (rg2 > (((float)rg2ds / 60) * QC_MAX_RG)) ) ? QC_ERR_RG : rg2;
+      rg2 = raingauge2_sample();
     }
 
     if (RainEnabled()) {
@@ -499,36 +361,9 @@ void OBS_Take() {
     pm25aqi_clear();
   }
 
-  //
-  // Add I2C Sensors
-  //
   if (BMX_1_exists) {
-    float p = 0.0;
-    float t = 0.0;
-    float h = 0.0;
-
-    if (BMX_1_chip_id == BMP280_CHIP_ID) {
-      p = bmp1.readPressure()/100.0F;       // bp1 hPa
-      t = bmp1.readTemperature();           // bt1
-    }
-    else if (BMX_1_chip_id == BME280_BMP390_CHIP_ID) {
-      if (BMX_1_type == BMX_TYPE_BME280) {
-        p = bme1.readPressure()/100.0F;     // bp1 hPa
-        t = bme1.readTemperature();         // bt1
-        h = bme1.readHumidity();            // bh1 
-      }
-      if (BMX_1_type == BMX_TYPE_BMP390) {
-        p = bm31.readPressure()/100.0F;     // bp1 hPa
-        t = bm31.readTemperature();         // bt1 
-      }    
-    }
-    else { // BMP388
-      p = bm31.readPressure()/100.0F;       // bp1 hPa
-      t = bm31.readTemperature();           // bt1
-    }
-    p = (isnan(p) || (p < QC_MIN_P)  || (p > QC_MAX_P))  ? QC_ERR_P  : p;
-    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
-    h = (isnan(h) || (h < QC_MIN_RH) || (h > QC_MAX_RH)) ? QC_ERR_RH : h;
+    float p,t,h;
+    bmx1_read(p, t, h);
     
     // BMX1 Preasure
     strcpy (obs.sensor[sidx].id, "bp1");
@@ -554,32 +389,8 @@ void OBS_Take() {
   }
   
   if (BMX_2_exists) {
-    float p = 0.0;
-    float t = 0.0;
-    float h = 0.0;
-
-    if (BMX_2_chip_id == BMP280_CHIP_ID) {
-      p = bmp2.readPressure()/100.0F;       // bp2 hPa
-      t = bmp2.readTemperature();           // bt2
-    }
-    else if (BMX_2_chip_id == BME280_BMP390_CHIP_ID) {
-      if (BMX_2_type == BMX_TYPE_BME280) {
-        p = bme2.readPressure()/100.0F;     // bp2 hPa
-        t = bme2.readTemperature();         // bt2
-        h = bme2.readHumidity();            // bh2 
-      }
-      if (BMX_2_type == BMX_TYPE_BMP390) {
-        p = bm32.readPressure()/100.0F;     // bp2 hPa
-        t = bm32.readTemperature();         // bt2       
-      }
-    }
-    else { // BMP388
-      p = bm32.readPressure()/100.0F;       // bp2 hPa
-      t = bm32.readTemperature();           // bt2
-    }
-    p = (isnan(p) || (p < QC_MIN_P)  || (p > QC_MAX_P))  ? QC_ERR_P  : p;
-    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
-    h = (isnan(h) || (h < QC_MIN_RH) || (h > QC_MAX_RH)) ? QC_ERR_RH : h;
+    float p,t,h;
+    bmx2_read(p, t, h);
 
     // BMX2 Preasure
     strcpy (obs.sensor[sidx].id, "bp2");
@@ -601,6 +412,9 @@ void OBS_Take() {
       obs.sensor[sidx++].inuse = true;
     }
   }
+
+  // Do Sensor observations for SHT31, SHT45, BMP581, HDC302x
+  sensor_i2c_44_47_obs_do(sidx);      
   
   if (HTU21DF_exists) {
     float t = 0.0;
@@ -620,101 +434,6 @@ void OBS_Take() {
     t = htu.readTemperature();
     t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
     obs.sensor[sidx].f_obs = t;
-    obs.sensor[sidx++].inuse = true;
-  }
-  
-  if (SHT_1_exists) {                                                                               
-    float t = 0.0;
-    float h = 0.0;
-
-    // SHT1 Temperature
-    strcpy (obs.sensor[sidx].id, "st1");
-    obs.sensor[sidx].type = F_OBS;
-    t = sht1.readTemperature();
-    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
-    obs.sensor[sidx].f_obs = t;
-    obs.sensor[sidx++].inuse = true;
-    
-    // SHT1 Humidity   
-    strcpy (obs.sensor[sidx].id, "sh1");
-    obs.sensor[sidx].type = F_OBS;
-    h = sht1.readHumidity();
-    h = (isnan(h) || (h < QC_MIN_RH) || (h > QC_MAX_RH)) ? QC_ERR_RH : h;
-    obs.sensor[sidx].f_obs = h;
-    obs.sensor[sidx++].inuse = true;
-
-    sht1_humid = h; // save for derived observations
-  }
-
-  if (SHT_2_exists) {
-    float t = 0.0;
-    float h = 0.0;
-
-    // SHT2 Temperature
-    strcpy (obs.sensor[sidx].id, "st2");
-    obs.sensor[sidx].type = F_OBS;
-    t = sht2.readTemperature();
-    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
-    obs.sensor[sidx].f_obs = t;
-    obs.sensor[sidx++].inuse = true;
-    
-    // SHT2 Humidity   
-    strcpy (obs.sensor[sidx].id, "sh2");
-    obs.sensor[sidx].type = F_OBS;
-    h = sht2.readHumidity();
-    h = (isnan(h) || (h < QC_MIN_RH) || (h > QC_MAX_RH)) ? QC_ERR_RH : h;
-    obs.sensor[sidx].f_obs = h;
-    obs.sensor[sidx++].inuse = true;
-  }
-  
-  if (HDC_1_exists) {
-    double t = -999.9;
-    double h = -999.9;
-
-    if (hdc1.readTemperatureHumidityOnDemand(t, h, TRIGGERMODE_LP0)) {
-      t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
-      h = (isnan(h) || (h < QC_MIN_RH) || (h > QC_MAX_RH)) ? QC_ERR_RH : h;
-    }
-    else {
-      Output ("ERR:HDC1 Read");
-    }
-
-    // HDC1 Temperature
-    strcpy (obs.sensor[sidx].id, "hdt1");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) t;
-    obs.sensor[sidx++].inuse = true;
-
-    // HDC1 Humidity
-    strcpy (obs.sensor[sidx].id, "hdh1");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) h;
-    obs.sensor[sidx++].inuse = true;
-
-  }
-
-  if (HDC_2_exists) {
-    double t = -999.9;
-    double h = -999.9;
-
-    if (hdc2.readTemperatureHumidityOnDemand(t, h, TRIGGERMODE_LP0)) {
-      t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
-      h = (isnan(h) || (h < QC_MIN_RH) || (h > QC_MAX_RH)) ? QC_ERR_RH : h;
-    }
-    else {
-      Output ("ERR:HDC1 Read");
-    }
-
-    // HDC2 Temperature
-    strcpy (obs.sensor[sidx].id, "hdt2");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) t;
-    obs.sensor[sidx++].inuse = true;
-
-    // HDC2 Humidity
-    strcpy (obs.sensor[sidx].id, "hdh2");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = (float) h;
     obs.sensor[sidx++].inuse = true;
   }
 
@@ -881,19 +600,6 @@ void OBS_Take() {
     obs.sensor[sidx++].inuse = true;
   }
 
-#ifdef NOWAY
-  if (VEML7700_exists) {
-    float lux = veml.readLux(VEML_LUX_AUTO);
-    lux = (isnan(lux) || (lux < QC_MIN_VLX)  || (lux > QC_MAX_VLX))  ? QC_ERR_VLX  : lux;
-
-    // VEML7700 Auto Lux Value
-    strcpy (obs.sensor[sidx].id, "vlx");
-    obs.sensor[sidx].type = F_OBS;
-    obs.sensor[sidx].f_obs = lux;
-    obs.sensor[sidx++].inuse = true;
-  }
-#endif
-
   if (BLX_exists) {
     float lux=blx_takereading();
     lux = (isnan(lux) || (lux < QC_MIN_BLX)  || (lux > QC_MAX_BLX))  ? QC_ERR_BLX  : lux;
@@ -979,7 +685,184 @@ void OBS_Take() {
 
 /*
  * ======================================================================================================================
- * OBS_Do() - Do Observation Processing
+ * OBS_Build_WiFi() - Create observation in obsbuf from structure obs for sending
+ * 
+ * Example at=2022-05-17T17%3A40%3A04&hth=8770 .....
+ * ======================================================================================================================
+ */
+bool OBS_Build_WiFi() {
+  Output("OBSBLDWIFI()"); 
+  if (obs.inuse) {     // Sanity check  
+    memset(obsbuf, 0, sizeof(obsbuf));
+    tm *dt = gmtime(&obs.ts);
+
+    sprintf (obsbuf, "%s?key=%s&instrument_id=%d&devid=%s",
+      cf_urlpath, cf_apikey, cf_instrument_id, DeviceID);
+
+    sprintf (obsbuf+strlen(obsbuf), "at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
+      dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
+      dt->tm_hour, dt->tm_min, dt->tm_sec);
+    sprintf (obsbuf+strlen(obsbuf), "&bv=%.2f", obs.bv); 
+    sprintf (obsbuf+strlen(obsbuf), "&hth=%d", 
+      obs.hth);  
+
+    for (int s=0; s<MAX_SENSORS; s++) {
+      if (obs.sensor[s].inuse) {
+        switch (obs.sensor[s].type) {
+          case F_OBS :
+            sprintf (obsbuf+strlen(obsbuf), "&%s=%.1f", obs.sensor[s].id, obs.sensor[s].f_obs);
+            break;
+          case I_OBS :
+            sprintf (obsbuf+strlen(obsbuf), "&%s=%d", obs.sensor[s].id, obs.sensor[s].i_obs);
+            break;
+          case U_OBS :
+            sprintf (obsbuf+strlen(obsbuf), "&%s=%u", obs.sensor[s].id, obs.sensor[s].i_obs);
+            break;
+          default : // Should never happen
+            Output ("WhyAmIHere?");
+            break;
+        }
+      }
+    }
+
+    Output("OBSBLDWIFI:OK");
+    Serial_writeln (obsbuf);
+    return (true);
+  }
+  else {
+    Output("OBSBLDWIFI:NOTINUSE");
+    return (false);
+  }
+}
+
+/*
+ * ======================================================================================================================
+ * OBS_Send_LoRaWAN() - From obs structure build and send 1 or more LoRaWAN packets as needed
+ * ======================================================================================================================
+ */
+void OBS_Send_LoRaWAN() {
+  char header[32];
+  char hthbits[32];
+  char loramsg[256];
+  char sensor[16];
+  int count=0;
+  bool checkN2S=true;
+  int sensor_payload;  // LORA_PAYLOAD Buffer Size
+
+  Output("OBS_Send_LW)");
+  if (obs.inuse) {                           // Sanity check set by OBS_Take()
+    tm *dt = gmtime(&obs.ts);                // OBS_Take() has already obtained the time
+
+    memset(header, 0, sizeof(header));       // Header is included in every lora message
+    memset(loramsg, 0, sizeof(loramsg));
+    memset(hthbits, 0, sizeof(hthbits));
+    memset(obsbuf, 0, sizeof(obsbuf));       // This will be the lora payload we send
+
+    // Consider adding health to header so we can set the from N2S bit.
+    
+    // Header is included in every lora message
+    sprintf (header, "at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",         // 23 bytes
+      dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
+      dt->tm_hour, dt->tm_min, dt->tm_sec);
+    sprintf (hthbits, "&hth=%d", obs.hth);                           // Call it 9 bytes
+
+    sensor_payload = LORA_PAYLOAD - (strlen (header) + strlen (hthbits));
+
+    sprintf (loramsg, "bv=%.2f", obs.bv); 
+    
+    for (int s=0; s<MAX_SENSORS; s++) {
+      if (obs.sensor[s].inuse) {
+        // sprintf (Buffer32Bytes, "PROCESSOBS=%d", s);
+        // Output(Buffer32Bytes); 
+        count++;  
+        switch (obs.sensor[s].type) {
+          case F_OBS :
+            sprintf (sensor, "&%s=%.1f", obs.sensor[s].id, obs.sensor[s].f_obs);
+            break;
+          case I_OBS :
+            sprintf (sensor, "&%s=%d", obs.sensor[s].id, obs.sensor[s].i_obs);
+            break;
+          case U_OBS :
+            sprintf (sensor, "&%s=%u", obs.sensor[s].id, obs.sensor[s].i_obs);
+            break;
+          default : // Should never happen
+            Output ("WhyAmIHere?");
+            break;
+        }
+        
+        // Will this Sensor observation fit into loramsg - This is how we do not overflow the 256 byte loramsg structure
+        if ( (strlen(sensor) + strlen(loramsg)) <= sensor_payload) {
+          // Add the sensor to the sensors
+          sprintf (loramsg+strlen(loramsg), "%s", sensor);
+        }
+        else {       
+          Output("OBS_Send_LW:SENDING");
+          sprintf (obsbuf, "%s%s%s", header, hthbits, loramsg); // Put the parts together and send
+          Output (obsbuf);
+          if (LW_Send(obsbuf)) {
+            Output("OBS_Send_LW:SENT");
+          }
+          else {
+            Output("OBS_Send_LW:PUB FAILED");
+            sprintf (hthbits, "&hth=%d", (obs.hth | SSB_FROM_N2S)); // Turn On Bit
+
+            sprintf (obsbuf, "%s%s%s", header, hthbits, loramsg);
+            Output (obsbuf);
+            SD_NeedToSend_Add(obsbuf);
+            checkN2S = false;
+          }
+
+          // Success or fail we continue on trying to send the rest of the observations
+
+          delay(500); // Its Recommended before sending another message
+
+          // Clear sensors and add the one that would not fit along with the header
+          count = 1;
+          memset(loramsg, 0, sizeof(loramsg));
+          memset(obsbuf, 0, sizeof(obsbuf));
+        }
+      }
+      else {
+        // sprintf (Buffer32Bytes, "NOT INUSE=%d", s);
+        // Output(Buffer32Bytes);          
+      }
+    } // for
+
+    // Send remainding obs if any
+    if (count) {
+      Output("OBS_Send_LW:SENDING-LAST");
+      sprintf (obsbuf, "%s%s%s", header, hthbits, loramsg); // Put the parts together and send
+      Output (obsbuf);
+
+      if (LW_Send(obsbuf)) {
+        Output("OBS_Send_LW:SENT");
+      }
+      else {
+        Output("OBS_Send_LW:PUB FAILED");
+        sprintf (hthbits, "&hth=%d", (obs.hth | SSB_FROM_N2S)); // Turn On Bit
+
+        sprintf (obsbuf, "%s%s%s", header, hthbits, loramsg);
+        Output (obsbuf);
+        SD_NeedToSend_Add(obsbuf);
+        checkN2S = false;
+      }
+    }
+    
+    OBS_Clear(); 
+
+    if (checkN2S) {
+      // Check if we have any N2S and if we have not added to the file while trying to send OBS, check
+      SD_N2S_Publish();     
+    }
+  }
+  else {
+    Output("OBS_Send_LW:NOTINUSE");
+  }
+}
+
+/*
+ * ======================================================================================================================
+ * OBS_Do() - Do Observation Processing, 222 bytes max for LoRaWAN
  * ======================================================================================================================
  */
 void OBS_Do() {
@@ -990,24 +873,27 @@ void OBS_Do() {
   // At this point, the obs data structure has been filled in with observation data
   OBS_LOG_Add();        // Save Observation Data to Log file.
 
-  // Build Observation to Send
-  Output("OBS_BUILD()");
-  OBS_Build();
-
-  Output("OBS_SEND()");
-  if (SendMsg(obsbuf) != 1) {  
-    Output("FS->PUB FAILED");
-    OBS_N2S_Save(); // Saves Main observations
+  // Handle LoRaWAN
+  if (LW_valid) {
+    OBS_Send_LoRaWAN();
   }
-  else {
-    bool OK2Send = true;
-        
-    Output("FS->PUB OK");
-
-    // Check if we have any N2S only if we have not added to the file while trying to send OBS
-    if (OK2Send) {
-      SD_N2S_Publish(); 
+  else if (WiFi_valid) {
+    if (OBS_Build_WiFi()) {  // Build Observation to Send in obsbuf
+      // WiFi_Send() returns 0=not sent, -500=ErrorCode Not Sent, 1=Sent
+      if (WiFi_Send(obsbuf, cf_info_server, cf_info_server_port, cf_info_urlpath, METHOD_POST, cf_info_apikey) != 1) {
+        Output("FS->PUB FAILED");
+        OBS_N2S_Add_WiFi();
+        OBS_Clear();
+      }
+      else {
+        Output("FS->PUB OK");
+        OBS_Clear();
+        // Check if we have any N2S only if we have not added to the file while trying to send OBS
+        SD_N2S_Publish(); 
+      }
     }
   }
+  else {
+    Output("No Valid Network");
+  }
 }
-

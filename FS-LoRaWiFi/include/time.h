@@ -22,7 +22,7 @@ extern unsigned long NoClockRecheckTime;
  // Function prototypes
  uint32_t rtc_unixtime();
  void rtc_timestamp();
- void rtc_refresh();
+ bool rtc_refresh();
  void rtc_initialize();
  bool rtc_readserial();
  

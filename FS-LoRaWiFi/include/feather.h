@@ -17,7 +17,7 @@
 #define LED_PIN      LED_BUILTIN
 
 // Extern variables
-extern char DeviceID[25];
+extern char DeviceID[17];
 extern const char* pinNames[];
 
 // Function prototypes

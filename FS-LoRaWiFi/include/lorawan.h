@@ -154,6 +154,7 @@ if (LMIC.opmode & OP_TXRXPEND) { // Don't send }
 #define LORA_WIFI_SS 8 // We need to set this pin high to disable LoRa / Wifi, 
                        // prior to accessing the SD card.
 #define LORA_TRANSMIT_GAP 30 // Used to force a 30 second gap between LoRaWAN transmissions
+#define LORA_PAYLOAD 222 // What we can safely send with in a LoRaWAN SF7–8 (DR4–5) packet
 
 // Extern variables
 extern bool LW_valid;

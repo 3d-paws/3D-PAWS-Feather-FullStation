@@ -4,28 +4,29 @@
 Sensors
 | Sensor Model                  | Type                    | Description                                                                                              | Company URL                             |
 |-------------------------------|-------------------------|----------------------------------------------------------------------------------------------------------|------------------------------------------|
-| Adafruit HTU21DF              | Temp/Humidity           | Digital I2C sensor, ±2% RH, ±0.3°C, compact, low power.                                                  | [Adafruit HTU21DF](https://www.adafruit.com/product/1899)   |
-| Adafruit MCP9808              | Temperature             | High-precision digital temp sensor, ±0.25°C, 2.7-5.5V, I2C.                                              | [Adafruit MCP9808](https://www.adafruit.com/product/1782)   |
-| Adafruit BME280               | Temp/Humidity/Pressure  | Measures temp, humidity, pressure, I2C/SPI, -40 to +85°C, 0-100% RH, 1.8-5V.                             | [Adafruit BME280](https://www.adafruit.com/product/2652)    |
-| Adafruit BMP280               | Temp/Pressure           | Measures pressure (300–1100 hPa), temperature, I2C/SPI, small, low-power.                                | [Adafruit BMP280](https://www.adafruit.com/product/2651)    |
-| Adafruit BMP3XX               | Temp/Pressure           | Gen3 barometric, high-precision, ±0.5m alt., I2C/SPI.                                                    | [BMP388/BMP3XX](https://shop.pimoroni.com/en-us/products/adafruit-bmp388-precision-barometric-pressure-and-altimeter) |
-| Adafruit SHT31                | Temp/Humidity           | High accuracy, ±2% RH, ±0.3°C, I2C, fast response, 2.4–5.5V.                                             | [Adafruit SHT31](https://www.adafruit.com/product/2857)     |
-| Adafruit VEML7700             | Ambient Light           | Precise lux (0–120klux), I2C, auto-range, digital output, 3.3/5V.                                        | [Adafruit VEML7700](https://www.adafruit.com/product/4162)  |
-| Adafruit SI1145               | Light/UV/Proximity      | I2C, measures visible, IR, and digital UV index, 3-5V.                                                   | [Adafruit SI1145](https://www.adafruit.com/product/1777)    |
-| Adafruit PM25AQI              | PM2.5 Air Quality       | Measures particulate (0.3–10um), I2C (fixed 0x12), 0-500μg/m³ range, 5V.                                 | [PM25AQI](https://www.adafruit.com/product/4632)            |
-| Adafruit HDC302x              | Temp/Humidity           | High-accuracy I2C digital sensor (variant of HDC3021, HDC3022).                                          | [Adafruit HDC302x](https://www.adafruit.com)                |
-| Adafruit LPS35HW              | Pressure                | Robust water-resistant MEMS pressure sensor, I2C/SPI, oil/water resistant.                               | [LPS35HW](https://www.adafruit.com)                        |
-| DFRobot_B_LUX_V30B            | Ambient Light           | Measures up to 200klx, wide range, digital I2C, 3.3-5V.                                                  | [DFRobot Wiki](https://wiki.dfrobot.com/Ambient_Light_Sensor_0_200klx_SKU_SEN0390) |
-| Honeywell HIH8000             | Temp/Humidity           | Reliable, digital I2C, ±3% RH, ±0.5°C, industrial grade.                                                | [Honeywell HIH8000](https://sensing.honeywell.com)          |
-| Tinovi LeafSens               | Leaf Wetness/Temp       | Non-contact capacitive leaf wetness + temperature, digital.                                              | [Tinovi LeafSens](https://www.tinovi.com/leafsens)          |
-| Tinovi i2cArduino             | Soil Moisture/Temp      | Capacitive soil moisture + temperature, I2C.                                                             | [Tinovi i2cArduino](https://www.tinovi.com/i2carduino)      |
-| AS5600                        | Magnetic Encoder        | Rotational angle/magnetic position sensor, I2C.                                                          | [AS5600 Sensor](https://www.ams.com/as5600)                 |
-| AS5600L                       | Magnetic Encoder        | Same as AS5600, but designed for integration in new designs (ex: Particle Muon).                         | [AS5600L Sensor](https://www.ams.com/as5600l)               |
-| SS451A (Rain Gauge)           | Hall Effect Switch      | Digital magnetic field sensor, rugged, used as rain gauge switch.                                        | [SS451A Datasheet](https://sensing.honeywell.com)           |
-| SS451A (Anemometer)           | Hall Effect Switch      | Used as wind anemometer sensor (rotation detection).                                                     | [SS451A Datasheet](https://sensing.honeywell.com)           |
-| TMP112A                       | Temperature             | Precision digital temp sensor, on-board Particle Muon.                                                   | [TMP112A Sensor](https://www.ti.com/product/TMP112A)        |
-| MB7360, MB7369, MB7380, MB7389| 5m Distance             | Maxbotix Ultrasonic Distance Sensor                                                                      | [Maxbotix](https://maxbotix.com/products)        |
-| MB7363, MB7366, MB7383, MB7386| 10m Distance            | Maxbotix Ultrasonic Distance Sensor                                                                      | [Maxbotix](https://maxbotix.com/products)        |
+| Adafruit HTU21DF              | Temp/Humidity           | Digital I2C sensor, ±2% RH, ±0.3°C, compact, low power.                                     | [Adafruit HTU21DF](https://www.adafruit.com/product/1899)   |
+| Adafruit MCP9808              | Temperature             | High-precision digital temp sensor, ±0.25°C, 2.7-5.5V, I2C.                                 | [Adafruit MCP9808](https://www.adafruit.com/product/1782)   |
+| Adafruit BME280               | Temp/Humidity/Pressure  | Measures temp, humidity, pressure, I2C/SPI, -40 to +85°C, 0-100% RH, 1.8-5V.                | [Adafruit BME280](https://www.adafruit.com/product/2652)    |
+| Adafruit BMP280               | Temp/Pressure           | Measures pressure (300–1100 hPa), temperature, I2C/SPI, small, low-power.                   | [Adafruit BMP280](https://www.adafruit.com/product/2651)    |
+| Adafruit BMP3XX               | Temp/Pressure           | Gen3 barometric, high-precision, ±0.5m alt., I2C/SPI.                                       | [BMP388/BMP3XX](https://shop.pimoroni.com/en-us/products/adafruit-bmp388-precision-barometric-pressure-and-altimeter) |
+| Adafruit_BMP5xx               | Temp/Pressure           | BMP5xx series (BMP581) is a high-precision barometric pressure sensors from Bosch Sensortec | [Adafruit BMP5xx](hhttps://www.adafruit.com/product/6407) |
+| Adafruit SHT31                | Temp/Humidity           | High accuracy, ±2% RH, ±0.3°C, I2C, fast response, 2.4–5.5V.                                | [Adafruit SHT31](https://www.adafruit.com/product/2857)     |
+| Adafruit_SHT4x                | Temp/Humidity           | Adafruit Sensirion SHT45 Precision Temp & Humidity with PTFE                                | [Adafruit SHT31](https://www.adafruit.com/product/2857)     |
+| Adafruit SI1145               | Light/UV/Proximity      | I2C, measures visible, IR, and digital UV index, 3-5V.                                      | [Adafruit SI1145](https://www.adafruit.com/product/6174)    |
+| Adafruit PM25AQI              | PM2.5 Air Quality       | Measures particulate (0.3–10um), I2C (fixed 0x12), 0-500μg/m³ range, 5V.                    | [PM25AQI](https://www.adafruit.com/product/4632)            |
+| Adafruit HDC302x              | Temp/Humidity           | High-accuracy I2C digital sensor (variant of HDC3021, HDC3022).                             | [Adafruit HDC302x](https://www.adafruit.com)                |
+| Adafruit LPS35HW              | Pressure                | Robust water-resistant MEMS pressure sensor, I2C/SPI, oil/water resistant.                  | [LPS35HW](https://www.adafruit.com)                        |
+| DFRobot_B_LUX_V30B            | Ambient Light           | Measures up to 200klx, wide range, digital I2C, 3.3-5V.                                     | [DFRobot Wiki](https://wiki.dfrobot.com/Ambient_Light_Sensor_0_200klx_SKU_SEN0390) |
+| Honeywell HIH8000             | Temp/Humidity           | Reliable, digital I2C, ±3% RH, ±0.5°C, industrial grade.                                    | [Honeywell HIH8000](https://sensing.honeywell.com)          |
+| Tinovi LeafSens               | Leaf Wetness/Temp       | Non-contact capacitive leaf wetness + temperature, digital.                                 | [Tinovi LeafSens](https://www.tinovi.com/leafsens)          |
+| Tinovi i2cArduino             | Soil Moisture/Temp      | Capacitive soil moisture + temperature, I2C.                                                | [Tinovi i2cArduino](https://www.tinovi.com/i2carduino)      |
+| AS5600                        | Magnetic Encoder        | Rotational angle/magnetic position sensor, I2C.                                             | [AS5600 Sensor](https://www.ams.com/as5600)                 |
+| AS5600L                       | Magnetic Encoder        | Same as AS5600, but designed for integration in new designs (ex: Particle Muon).            | [AS5600L Sensor](https://www.ams.com/as5600l)               |
+| SS451A (Rain Gauge)           | Hall Effect Switch      | Digital magnetic field sensor, rugged, used as rain gauge switch.                           | [SS451A Datasheet](https://sensing.honeywell.com)           |
+| SS451A (Anemometer)           | Hall Effect Switch      | Used as wind anemometer sensor (rotation detection).                                        | [SS451A Datasheet](https://sensing.honeywell.com)           |
+| TMP112A                       | Temperature             | Precision digital temp sensor, on-board Particle Muon.                                      | [TMP112A Sensor](https://www.ti.com/product/TMP112A)        |
+| MB7360, MB7369, MB7380, MB7389| 5m Distance             | Maxbotix Ultrasonic Distance Sensor                                                         | [Maxbotix](https://maxbotix.com/products)        |
+| MB7363, MB7366, MB7383, MB7386| 10m Distance            | Maxbotix Ultrasonic Distance Sensor                                                         | [Maxbotix](https://maxbotix.com/products)        |
 
 ---
 ### Tags Names sent to Particle
@@ -77,7 +78,6 @@ Sensors
 | mt2      | MCP9808 Temperature           |
 | gt1      | MCP9808 Globe Temperature            |
 | gt2      | MCP9808 Globe Temperature            |
-| vlx      | VEML7700 LUX           |
 | blx      | DFRobot_B_LUX_V30B            |
 | sg       | Option 1 Maxbotix Distance Guage snow or stream            |
 | op1r     | Option 1 analog pin raw reading           |
@@ -85,6 +85,8 @@ Sensors
 | rgt2     | Option 1 2nd rain total            |
 | rgp2     | Option 1 2nd rain total prior            |
 | op2r     | Option 2 analog pin raw reading            |
+| vbv      | Option 2 Voltaic Battery Voltage |
+| vpc      | Option 2 Voltaic Percent Charge |
 | hi       | SHT31 Heat Index Temperature            |
 | wbt      | MCP9808 & SHT31 Wet Bulb Temperature|
 | wbgt     | MCP9808 & SHT31 Wet Bulb Globe Temperature            |

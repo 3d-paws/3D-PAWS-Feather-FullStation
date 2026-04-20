@@ -5,6 +5,19 @@
 - Supports WiFi connectivity via [Adafruit Feather M0 WiFi Board](ttps://www.adafruit.com/product/3010)
 - Duplicates (as close as possible) the features from the [3D-PAWS Particle Full Station](https://github.com/3d-paws/3D-PAWS-Particle-FullStation) project.
 
+## Release FSLW-260420
+- Setup RTC refresh every 4 hours 
+- Removed the support for Tinovi MultiLevel Soil Moisture (4 Soil and 2 Temperature)
+- Removed support for VMEL7700 Lux sensor address 0x10 collides with GPS
+- AQS set report the 3 environmental readings
+- Added BMP581, SHT45 MSLP, HDC, LPS support
+- Added DSMUX 1-Wire support for 8 temperature sensors dst0-7
+- Added support to set rain total rollover hour
+- Changed GetDeviceID() to be a length of 16 instead of 24
+- GPS now powers down (Uses pin D5)
+- We now send multiple loRaWAN obs messages if we have payloads greater than 222 bytes.
+- Various codes improvements and fixes
+
 ## Release FSLW-260219
 - Code cleanup with proper .cpp and .h files
 - Added lora wan options to config file

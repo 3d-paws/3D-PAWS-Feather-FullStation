@@ -84,20 +84,22 @@ typedef struct {
 
 
 // Extern variables
+extern volatile bool TurnLedOff;                 // Set true in rain gauge interrupt
+
 extern volatile unsigned int anemometer_interrupt_count;
-extern unsigned long anemometer_interrupt_stime;
+extern uint64_t anemometer_interrupt_stime;
 
 extern bool AS5600_exists;
 extern int AS5600_ADR;
 
 extern volatile unsigned int raingauge1_interrupt_count;
 extern uint64_t raingauge1_interrupt_stime;
-extern uint64_t raingauge1_interrupt_ltime;
+extern volatile uint64_t raingauge1_interrupt_ltime;
 extern uint64_t raingauge1_interrupt_toi;
 
 extern volatile unsigned int raingauge2_interrupt_count;
 extern uint64_t raingauge2_interrupt_stime;
-extern uint64_t raingauge2_interrupt_ltime;
+extern volatile uint64_t raingauge2_interrupt_ltime;
 extern uint64_t raingauge2_interrupt_toi;
 
 extern bool ws_refresh;
@@ -107,7 +109,9 @@ extern unsigned int dg_resolution_adjust;
 // Function prototype
 void anemometer_interrupt_handler();
 void raingauge1_interrupt_handler();
+float raingauge1_sample();
 void raingauge2_interrupt_handler();
+float raingauge2_sample();
 
 bool RainEnabled();
 float Wind_SampleSpeed();

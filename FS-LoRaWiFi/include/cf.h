@@ -110,7 +110,7 @@ rg1_enable=0
 op1=0
 
 # OptionPin 2 - pin A5
-# 0 = No sensor (Pin in use if pm25aqi air quality dectected)
+# 0 = No sensor (Pin in use if pm25aqi air quality detected)
 # 1 = raw (op2r - average 5 samples spaced 10ms)
 # 2 = read Voltaic battery voltage (vbv)
 op2=0

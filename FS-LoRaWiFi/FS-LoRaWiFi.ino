@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-260317"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-2604120"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
@@ -94,14 +94,23 @@
  *                    Added DSMUX 1-Wire support for 8 temperature sensors dst0-7
  *                    Added pinmode INPUT to wind rain OP1, and OP2
  *                    Added support to set rain total rollover
- *                    Allowed rtro range changed to -12 to 12  
+ *                    Added rtro range changed to 0-23 :00,15,30,45  
  *     2026-03-20 RJB Modified EEPROM_UpdateRainTotals() to only update eeprom on change.
- *     
- *  Future Note - Support Chords and Google Big Query
- *    OBS.h line 212 will need to be modified
- *    EX URL curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
- *     "https://bigquery.googleapis.com/bigquery/v2/projects/YOUR_PROJECT_ID/datasets/YOUR_DATASET_ID"
- *     
+ *     2026-03-29 RJB Added volatile to interrupt routine variable definations, moved TurnLedOff defination to wrda
+ *     2026-04-12 RJB Changed GetDeviceID() to be a length of 16 instead of 24
+ *                    Bug Fix OBS_N2S_Add(); DeviceID unneeded param
+ *     2026-04-15 RJB Disabled interrupts when reading and setting shared values with the ISRs
+ *                    Created functions to obtain rg1 and rg2 values
+ *                    Modified rain ISR to only call millis() once.
+ *                    It is possible for the RTC PCF8523 or its library to give you a month value of 0 added check.
+ *                    Update GPS to power down the unit
+ *                    Removed support for VMEL7700 Lux sensor address 0x10 collides with GPS
+ *                    Changed GetDeviceID() to be a length of 16 instead of 24
+ *                    Change from Serial to Output("DSMUX:Select CH Err");
+ *                    Code clean up on BMX processing in OBS and Station monitor, utilizing BMX_1_type from initializtion
+ *                    Code clean up switch to %.2f on sprintf 
+ *     2026-04-20 RJB We now send multiple loRaWAN obs messages if we have payloads greater than 222 bytes.
+ *                 
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
  *    cp lmic_project_config.h-eu lmic_project_config.h
@@ -124,31 +133,31 @@
 
 /*
  * Required Libraries:
- *  adafruit-HTU21DF        https://github.com/adafruit/Adafruit_HTU21DF_Library - 1.1.0 - I2C ADDRESS 0x40
- *  adafruit-BusIO          https://github.com/adafruit/Adafruit_BusIO - 1.8.2
- *  Adafruit_MCP9808        https://github.com/adafruit/Adafruit_MCP9808_Library - 2.0.0 - I2C ADDRESS 0x18
- *  Adafruit_BME280         https://github.com/adafruit/Adafruit_BME280_Library - 2.1.4 - I2C ADDRESS 0x77  (SD0 to GND = 0x76)
- *  Adafruit_BMP280         https://github.com/adafruit/Adafruit_BMP280_Library - 2.3.0 -I2C ADDRESS 0x77  (SD0 to GND = 0x76)
- *  Adafruit_BMP3XX         https://github.com/adafruit/Adafruit_BMP3XX - 2.1.0 I2C ADDRESS 0x77 and (SD0 to GND = 0x76)
- *  Adafruit_GFX            https://github.com/adafruit/Adafruit-GFX-Library - 1.10.10
- *  Adafruit_Sensor         https://github.com/adafruit/Adafruit_Sensor - 1.1.4
- *  Adafruit_SHT31          https://github.com/adafruit/Adafruit_SHT31 - 2.2.0 I2C ADDRESS 0x44 and 0x45 when ADR Pin High
- *  Adafruit_VEML7700       https://github.com/adafruit/Adafruit_VEML7700/ - 2.1.2 I2C ADDRESS 0x10
- *  Adafruit_SI1145         https://github.com/adafruit/Adafruit_SI1145_Library - 1.1.1 - I2C ADDRESS 0x60
- *  Adafruit_SSD1306        https://github.com/adafruit/Adafruit_SSD1306 - 2.4.6 - I2C ADDRESS 0x3C  
- *  Adafruit_PM25AQI        https://github.com/adafruit/Adafruit_PM25AQI - 1.0.6 I2C ADDRESS 0x12 - Modified to Compile, Adafruit_PM25AQI.cpp" line 104
- *  RTCLibrary              https://github.com/adafruit/RTClib - 1.13.0
+ *  adafruit-HTU21DF        https://github.com/adafruit/Adafruit_HTU21DF_Library - I2C ADDRESS 0x40
+ *  adafruit-BusIO          https://github.com/adafruit/Adafruit_BusIO 
+ *  Adafruit_MCP9808        https://github.com/adafruit/Adafruit_MCP9808_Library - I2C ADDRESS 0x18
+ *  Adafruit_BME280         https://github.com/adafruit/Adafruit_BME280_Library  - I2C ADDRESS 0x77  (SD0 to GND = 0x76)
+ *  Adafruit_BMP280         https://github.com/adafruit/Adafruit_BMP280_Library  - I2C ADDRESS 0x77  (SD0 to GND = 0x76)
+ *  Adafruit_BMP3XX         https://github.com/adafruit/Adafruit_BMP3XX          - I2C ADDRESS 0x77 and (SD0 to GND = 0x76)
+ *  Adafruit_BMP5xx         https://github.com/adafruit/Adafruit_BMP5xx          - I2C ADDRESS 0x47 and 0x47
+ *  Adafruit_GFX            https://github.com/adafruit/Adafruit-GFX-Library
+ *  Adafruit_Sensor         https://github.com/adafruit/Adafruit_Sensor
+ *  Adafruit_SHT31          https://github.com/adafruit/Adafruit_SHT31           - I2C ADDRESS 0x44 and 0x45 when ADR Pin High
+ *  Adafruit_SHT4x          https://github.com/adafruit/Adafruit_SHT4x           - I2C ADDRESS 0x44
+ *  Adafruit_VEML7700       https://github.com/adafruit/Adafruit_VEML7700        - I2C ADDRESS 0x10
+ *  Adafruit_SI1145         https://github.com/adafruit/Adafruit_SI1145_Library  - I2C ADDRESS 0x60
+ *  Adafruit_SSD1306        https://github.com/adafruit/Adafruit_SSD1306         - I2C ADDRESS 0x3C  
+ *  Adafruit_PM25AQI        https://github.com/adafruit/Adafruit_PM25AQI         - I2C ADDRESS 0x12 - Modified to Compile, Adafruit_PM25AQI.cpp" line 104
+ *  RTCLibrary              https://github.com/adafruit/RTClib
  *  SdFat                   https://github.com/greiman/SdFat.git - 1.0.16 by Bill Greiman
- *  RF9X-RK-SPI1            https://github.com/rickkas7/AdafruitDataLoggerRK - 0.2.0 - Modified RadioHead LoRa for SPI1
- *  AES-master              https://github.com/spaniakos/AES - 0.0.1 - Modified to make it compile
- *  CryptoLW-RK             https://github.com/rickkas7/CryptoLW-RK - 0.2.0
  *  HIH8000                 No Library, Local functions hih8_initialize(), hih8_getTempHumid() - rjb
  *  SENS0390                https://wiki.dfrobot.com/Ambient_Light_Sensor_0_200klx_SKU_SEN0390 - DFRobot_B_LUX_V30B - 1.0.1 I2C ADDRESS 0x94
  *  EEPROM                  https://docs.particle.io/reference/device-os/api/eeprom/eeprom/ , https://www.adafruit.com/product/5146
- *  SpatkFun_I2C_GPS        https://github.com/sparkfun/SparkFun_I2C_GPS_Arduino_Library I2C ADDRESS 0x10
- *  LeafSens                https://github.com/tinovi/LeafArduinoI2c I2C ADDRESS 0x61
- *  i2cArduino              https://github.com/tinovi/i2cArduino     I2C ADDRESS 0x63
- *  i2cMultiSm              https://github.com/tinovi/i2cMultiSoilArduino/tree/master/lib ADDRESS 0x65
+ *  SpatkFun_I2C_GPS        https://github.com/sparkfun/SparkFun_I2C_GPS_Arduino_Library - I2C ADDRESS 0x10
+ *  LeafSens                https://github.com/tinovi/LeafArduinoI2c                     - I2C ADDRESS 0x61
+ *  i2cArduino              https://github.com/tinovi/i2cArduino                         - I2C ADDRESS 0x63
+ *  MCCI_LoRaWAN_LMIC_library https://github.com/mcci-catena/arduino-lmic
+ *  WiFi101                 http://www.arduino.cc/en/Reference/WiFi101
  */
  
 /*
@@ -183,7 +192,7 @@
  * 10            D10      Used by SD Card as CS          Grove D4  (Particle Pin D5)
  * 9             D9/A7    Voltage Battery Pin            Grove D4  (Particle Pin D4)
  * 6             D6       Connects to DIO1 for LoRaWAN   Grove D2  (Particle Pin D3)
- * 5             D5                                      Grove D2  (Particle Pin D2)
+ * 5             D5       Connects to GPS RST            Grove D2  (Particle Pin D2)
  * SCL           D3       i2c Clock                      Grove I2C_1
  * SDA           D2       i2c Data                       Grove I2C_1 
  * RST
@@ -228,6 +237,7 @@
 #include "include/mux.h"            // Mux Functions for mux connected sensors
 #include "include/dsmux.h"          // Dallas One Wire Mux Functions 
 #include "include/lorawan.h"        // LoRaWAN Support Functions
+#include "include/sensors_i2c_44_47.h" // Handle i2c Sensors in this address range
 #include "include/sensors.h"        // I2C Based Sensor Functions
 #include "include/statmon.h"        // Station Monitor Functions
 #include "include/obs.h"            // Observation Functions
@@ -241,7 +251,6 @@
  * 
  */
 bool JustPoweredOn = true;               // Used to clear SystemStatusBits set during power on device discovery
-bool TurnLedOff = false;                 // Set true in rain gauge interrupt
 
 char versioninfo[sizeof(VERSION_INFO)];  // allocate enough space including null terminator
 char msgbuf[MAX_MSGBUF_SIZE];            // Used to hold messages
@@ -375,8 +384,10 @@ void BackGroundWork() {
 
   if (!AQS_Enabled) {
     if (TurnLedOff) {   // Turned on by rain gauge interrupt handler
-      digitalWrite(LED_PIN, LOW);  
+      digitalWrite(LED_PIN, LOW);
+      noInterrupts();  
       TurnLedOff = false;
+      interrupts();
     }
   }
 }
@@ -492,17 +503,17 @@ void setup() {
   // Scan Dallas 1-Wire Mux for temperature sensors
   dsmux_initialize();
 
-  bmx_initialize();
-  htu21d_initialize();
+  bmx_initialize(); // This needs to run before sensor_initialize_i2c_44_47() so we know 
+                    // what obs tag name to assign to bmp581 if it exists.
+
+  // Scan for sensors BMP581 SHT31 SHT45 HDC302x and initialize
+  sensor_initialize_i2c_44_47();
+
+  htu21d_initialize(); // This sensor has same i2c address as AS5600L
   mcp9808_initialize();
-  sht_initialize();
   hih8_initialize();
   si1145_initialize();
-#ifdef NOWAY
-  lux_initialize();   // Can not use when GPS Module is connected same i2c address of 0x10
-#endif
   pm25aqi_initialize();
-  hdc_initialize();
   lps_initialize();
 
   // Tinovi Leaf Mositure Sensor
@@ -579,7 +590,6 @@ void loop() {
 
     if (!RTC_valid) {
       rtc_refresh(); // Get time from WiFi / GPS
-      // gps_aquire();  // This can set RTC_valid to true when valid GPS time obtained 
     }
 
     if (RTC_valid) {
@@ -646,10 +656,26 @@ void loop() {
     }
   }
 
-  // Update the RTC clock from WiFi Network
-  if (millis() >= nextTimeRefresh) {
-    rtc_refresh(); // This might take some time, we will correct 1 sec sampling after the call.
-    nextTimeRefresh = millis() + (3600 * 4) * 1000;
+  // Update the RTC clock
+  if ((gps_exists && gps_on) || (millis() >= nextTimeRefresh)) {
+    if (rtc_refresh()) {
+      // Time should be set and gps should be off, lets get a gps time update in N hours.
+      nextTimeRefresh = millis() + (3600 * RTC_UPDATE_INTERVAL) * 1000;
+    }
+    else {
+      // GPS was left on or Wifi failed, so lets try again in 5 minutes
+      nextTimeRefresh = millis() + (5 * 60) * 1000;
+    }
+
+    // Lets make sure we have 60 seconds of continous samples before the next reporting
+    if ((millis()+60000) < Time_of_next_obs) {
+      Time_of_next_obs = millis()+60000;
+    }
+  }
+
+  if (gps_exists && !gps_on) {
+    // Seem like the GPS sneaks on from time to time, when we have gps_on set to false. So lets make sure it stays off.
+    gps_keepoff(); // This will also call gps_aquire(); Which shuts it down.
 
     // Lets make sure we have 60 seconds of continous samples before the next reporting
     if ((millis()+60000) < Time_of_next_obs) {

@@ -14,6 +14,7 @@
 #include "include/sensors.h"
 #include "include/obs.h"
 #include "include/lorawan.h"        // LoRaWAN Support Functions
+#include "include/wifi.h"
 #include "include/sdcard.h"
 
 SdFat SD;                                   // File system object.
@@ -404,12 +405,24 @@ void SD_N2S_Publish() {
               interrupts();
 #endif
 
+              int send_result=0;
               if (LW_valid) {
                 LW_WaitOnTXRXPEND(60); // Probably not needed sind we have a 30s Wait Gap before the LoRa Send
                                        // It returns right away if TXRXPEND has been cleared
+                send_result = (LW_Send(obsbuf)) ? 1 : 0;
+              } 
+              else if (WiFi_valid) {
+                // WiFi_Send() returns 0=not sent, -500=ErrorCode Not Sent, 1=Sent
+
+                // Determine the type of message and which server to send to INFO or OBS
+                if (strstr(obsbuf, "\"MT\":\"INFO\"") != NULL) {
+                  send_result = WiFi_Send(obsbuf, cf_info_server, cf_info_server_port, cf_info_urlpath, METHOD_POST, cf_info_apikey);
+                }
+                else {
+                  send_result = WiFi_Send(obsbuf, cf_webserver, cf_webserver_port, cf_urlpath, METHOD_GET, cf_apikey);
+                }              
               }
 
-              int send_result = SendMsg(obsbuf);
 #if SD_MASK_INTERRUPS
               // Block LoRA DIO / Wifi interrupts
               noInterrupts();

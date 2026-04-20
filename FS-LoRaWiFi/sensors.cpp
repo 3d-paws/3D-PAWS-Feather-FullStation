@@ -10,6 +10,7 @@
 #include "include/main.h"
 #include "include/wrda.h"
 #include "include/cf.h"
+#include "include/sensors_i2c_44_47.h"
 #include "include/sensors.h"
 
 /*
@@ -59,17 +60,6 @@ bool MCP_1_exists = false;
 bool MCP_2_exists = false;
 bool MCP_3_exists = false;
 bool MCP_4_exists = false;
-
-
-/*
- * ======================================================================================================================
- *  SHTX - I2C - Temperature & Humidity sensor (SHT31)  - Note the SHT40, SHT45 use same i2c address
- * ======================================================================================================================
- */
-Adafruit_SHT31 sht1;
-Adafruit_SHT31 sht2;
-bool SHT_1_exists = false;
-bool SHT_2_exists = false;
 
 /*
  * ======================================================================================================================
@@ -122,16 +112,6 @@ float si_last_uv = 0.0;
 
 /*
  * ======================================================================================================================
- *  VEML7700 - I2C - Lux Sensor
- * ======================================================================================================================
- */
-#ifdef NOWAY
-Adafruit_VEML7700 veml = Adafruit_VEML7700();
-bool VEML7700_exists = false;
-#endif
-
-/*
- * ======================================================================================================================
  *  B_LUX_V30B - I2C - Lux Sensor
  * ======================================================================================================================
  */
@@ -148,16 +128,6 @@ int pm25aqi_1m_bucket = 0;
 PM25AQI_OBS_STR pm25aqi_obs;
 Adafruit_PM25AQI pmaq = Adafruit_PM25AQI();
 bool PM25AQI_exists = false;
-
-/*
- * ======================================================================================================================
- *  HDC302x - I2C - Precision Temperature & Humidity Sensor
- * ======================================================================================================================
- */
-Adafruit_HDC302x hdc1;
-Adafruit_HDC302x hdc2;
-bool HDC_1_exists = false;
-bool HDC_2_exists = false;
 
 /*
  * ======================================================================================================================
@@ -180,7 +150,7 @@ bool TLW_exists = false;
 
 /*
  * ======================================================================================================================
- *  Tinovi MultiLevel Soil Moisture (4 Soil and 2 Temperature)
+ *  Tinovi Soil Moisture (Soil and Temperature)
  * ======================================================================================================================
  */
 SVCS3 tsm;
@@ -310,6 +280,97 @@ byte get_Bosch_ChipID (byte address) {
   }
   return(0);
 }
+
+/* 
+ *=======================================================================================================================
+ * bmx1_read() - Read tph from Bosch sensor
+ *=======================================================================================================================
+ */
+void bmx1_read(float &p, float &t, float &h) {
+
+  p = -999.9;
+  t = -999.9;
+  h = -999.9;
+
+  if (BMX_1_exists) {
+    switch (BMX_1_type) {
+      case BMX_TYPE_BMP280 :
+        p = bmp1.readPressure()/100.0F;
+        t = bmp1.readTemperature();
+        break;
+        
+      case BMX_TYPE_BME280 :
+        p = bme1.readPressure()/100.0F;
+        t = bme1.readTemperature();
+        h = bme1.readHumidity(); 
+        break;
+
+      case BMX_TYPE_BMP390 :
+        p = bm31.readPressure()/100.0F;
+        t = bm31.readTemperature();
+        break;
+          
+      case BMX_TYPE_BMP388 :
+        p = bm31.readPressure()/100.0F;
+        t = bm31.readTemperature();
+        break;
+        
+      default: // WTF
+        Output ("bmx1_read (WTF)");
+        return;
+        break;
+    }
+    p = (isnan(p) || (p < QC_MIN_P)  || (p > QC_MAX_P))  ? QC_ERR_P  : p;
+    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
+    h = (isnan(h) || (h < QC_MIN_RH) || (h > QC_MAX_RH)) ? QC_ERR_RH : h;
+  }
+}
+
+/* 
+ *=======================================================================================================================
+ * bmx2_read() - Read tph from Bosch sensor
+ *=======================================================================================================================
+ */
+void bmx2_read(float &p, float &t, float &h) {
+
+  p = -999.9;
+  t = -999.9;
+  h = -999.9;
+
+  if (BMX_2_exists) {
+    switch (BMX_2_type) {
+      case BMX_TYPE_BMP280 :
+        p = bmp2.readPressure()/100.0F;
+        t = bmp2.readTemperature();
+        break;
+        
+      case BMX_TYPE_BME280 :
+        p = bme2.readPressure()/100.0F;
+        t = bme2.readTemperature();
+        h = bme2.readHumidity(); 
+        break;
+
+      case BMX_TYPE_BMP390 :
+        p = bm32.readPressure()/100.0F;
+        t = bm32.readTemperature();
+        break;
+          
+      case BMX_TYPE_BMP388 :
+        p = bm32.readPressure()/100.0F;
+        t = bm32.readTemperature();
+        break;
+        
+      default: // WTF
+        Output ("bmx1_read (WTF)");
+        return;
+        break;
+    }
+    p = (isnan(p) || (p < QC_MIN_P)  || (p > QC_MAX_P))  ? QC_ERR_P  : p;
+    t = (isnan(t) || (t < QC_MIN_T)  || (t > QC_MAX_T))  ? QC_ERR_T  : t;
+    h = (isnan(h) || (h < QC_MIN_RH) || (h > QC_MAX_RH)) ? QC_ERR_RH : h;
+  }
+}
+
 /* 
  *=======================================================================================================================
  * bmx_initialize() - Bosch sensor initialize
@@ -509,38 +570,6 @@ void mcp9808_initialize() {
   Output (msgp);
 }
 
-/* 
- *=======================================================================================================================
- * sht_initialize() - SHT31 sensor initialize
- *=======================================================================================================================
- */
-void sht_initialize() {
-  Output("SHT:INIT");
-  
-  // 1st SHT31 I2C Temperature/Humidity Sensor (I2C ADDRESS = 0x44)
-  sht1 = Adafruit_SHT31();
-  if (!sht1.begin(SHT_ADDRESS_1)) {
-    msgp = (char *) "SHT1 NF";
-    SHT_1_exists = false;
-  }
-  else {
-    SHT_1_exists = true;
-    msgp = (char *) "SHT1 OK";
-  }
-  Output (msgp);
-
-  // 2nd SHT31 I2C Temperature/Humidity Sensor (I2C ADDRESS = 0x45)
-  sht2 = Adafruit_SHT31();
-  if (!sht2.begin(SHT_ADDRESS_2)) {
-    msgp = (char *) "SHT2 NF";
-    SHT_2_exists = false;
-  }
-  else {
-    SHT_2_exists = true;
-    msgp = (char *) "SHT2 OK";
-  }
-  Output (msgp);
-}
 
 /* 
  *=======================================================================================================================
@@ -847,61 +876,15 @@ void si1145_initialize() {
     si_last_ir = uv.readIR();
     si_last_uv = uv.readUV()/100.0;
 
-    sprintf (msgbuf, "SI:VI[%d.%02d]", (int)si_last_vis, (int)(si_last_vis*100.0)%100); 
+    sprintf (msgbuf, "SI:VI[%.2f]", si_last_vis); 
     Output (msgbuf);
-    sprintf (msgbuf, "SI:IR[%d.%02d]", (int)si_last_ir, (int)(si_last_ir*100.0)%100); 
+    sprintf (msgbuf, "SI:IR[%.2f]", si_last_ir); 
     Output (msgbuf);
-    sprintf (msgbuf, "SI:UV[%d.%02d]", (int)si_last_uv, (int)(si_last_uv*100.0)%100); 
+    sprintf (msgbuf, "SI:UV[%,2f]", si_last_uv); 
     Output (msgbuf);
   }
 }
 
-/* 
- *=======================================================================================================================
- * vlux_initialize() - VEML7700 sensor initialize
- * 
- * SEE https://learn.microsoft.com/en-us/windows/win32/sensorsapi/understanding-and-interpreting-lux-values
- * 
- * This data set is for illustration and may not be completely accurate for all users or situations.
- * 
- * Lighting condition     From (lux)     To (lux)     Mean value (lux)     Lighting step
- * Pitch Black            0              10           5                    1
- * Very Dark              11             50           30                   2
- * Dark Indoors           51             200          125                  3
- * Dim Indoors            201            400          300                  4
- * Normal Indoors         401            1000         700                  5
- * Bright Indoors         1001           5000         3000                 6
- * Dim Outdoors           5001           10,000       7500                 7
- * Cloudy Outdoors        10,001         30,000       20,000               8
- * Direct Sunlight        30,001         100,000      65,000               9
- * 
- * From www.vishay.com - Designing the VEML7700 Into an Application
- * 1    lx Full moon overhead at tropical latitudes
- * 3.4  lx Dark limit of civil twilight under a clear sky
- * 50   lx Family living room
- * 80   lx Hallway / bathroom
- * 100  lx Very dark overcast day
- * 320  lx to 500 lx Office lighting
- * 400  lx Sunrise or sunset on a clear day
- * 1000 lx Overcast day; typical TV studio lighting
- * 
- *=======================================================================================================================
- */
-#ifdef NOWAY
-void lux_initialize() {
-  Output("LUX:INIT");
-
-  if (veml.begin()) {
-    VEML7700_exists = true;
-    msgp = (char *) "LUX OK";
-  }
-  else {
-    msgp = (char *) "LUX NF";
-    VEML7700_exists = false;
-  }
-  Output (msgp);
-}
-#endif
 
 /* 
  *=======================================================================================================================
@@ -1145,43 +1128,6 @@ void pm25aqi_TakeReading_AQS() {
       pm25aqi_obs.e100 = (pm25aqi_obs.e100 / pm25aqi_obs.count); 
     }
   }
-}
-
-/* 
- *=======================================================================================================================
- * hdc_initialize() - HDC3002c sensor initialize
- *=======================================================================================================================
- */
-void hdc_initialize() {
-  Output("HDC:INIT");
-  
-  // 1st HDC I2C Temperature/Humidity Sensor (I2C ADDRESS = 0x44)
-  hdc1 = Adafruit_HDC302x();
-  if (!hdc1.begin(HDC_ADDRESS_1, &Wire)) {
-    msgp = (char *) "HDC1 NF";
-    HDC_1_exists = false;
-  }
-  else {
-    double t,h;
-    hdc1.readTemperatureHumidityOnDemand(t, h, TRIGGERMODE_LP0);
-    HDC_1_exists = true;
-    msgp = (char *) "HDC1 OK";
-  }
-  Output (msgp);
-
-  // 2nd HDC I2C Temperature/Humidity Sensor (I2C ADDRESS = 0x45)
-  hdc2 = Adafruit_HDC302x();
-  if (!hdc2.begin(HDC_ADDRESS_2, &Wire)) {
-    msgp = (char *) "HDC2 NF";
-    HDC_2_exists = false;
-  }
-  else {
-    double t,h;
-    hdc2.readTemperatureHumidityOnDemand(t, h, TRIGGERMODE_LP0);
-    HDC_2_exists = true;
-    msgp = (char *) "HDC2 OK";
-  }
-  Output (msgp);
 }
 
 /* 

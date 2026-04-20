@@ -12,6 +12,7 @@
 #include "include/cf.h"
 #include "include/mux.h"
 #include "include/dsmux.h"
+#include "include/sensors_i2c_44_47.h"
 #include "include/sensors.h"
 #include "include/wrda.h"
 #include "include/sdcard.h"
@@ -84,12 +85,11 @@ void INFO_Do_WiFi() {
   sprintf (msg+strlen(msg), ",\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0WiFi\"", // Adafruit Feather M0 WiFi
     timestamp, DeviceID);
 
-  sprintf (msg+strlen(msg), ",\"ver\":\"%s\",\"lwr\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d,\"rtro\":\"%s\"",
+  sprintf (msg+strlen(msg), ",\"ver\":\"%s\",\"lwr\":\"%s\",\"bv\":%.2f,\"hth\":%d,\"elev\":%d,\"rtro\":\"%s\"",
     versioninfo, 
     LW_Region(), // LW Region: EU868 US915 ...
                  // Even though we are running on a WiFi board. Good to know what Region we are compiled for.
-    (int)vbat, (int)(vbat*100)%100, 
-    SystemStatusBits, cf_elevation, cf_rtro);
+    vbat, SystemStatusBits, cf_elevation, cf_rtro);
 
   // Log Server Information and Chords Apikey and Id
   sprintf (msg+strlen(msg), ",\"ls\":\"%s\",\"lsp\":%d,\"lsurl\":\"%s\",\"lsapi\":\"%s\",\"lsid\":%d",
@@ -217,22 +217,10 @@ void INFO_Do_WiFi() {
     sprintf (msg+strlen(msg), "%sMCP4/gt2", comma);
     comma=",";
   }
-  if (SHT_1_exists) {
-    sprintf (msg+strlen(msg), "%sSHT1", comma);
-    comma=",";
-  }
-  if (SHT_2_exists) {
-    sprintf (msg+strlen(msg), "%sSHT2", comma);
-    comma=",";
-  }
-  if (HDC_1_exists) {
-    sprintf (msg+strlen(msg), "%sHDC1", comma);
-    comma=",";
-  }
-  if (HDC_2_exists) {
-    sprintf (msg+strlen(msg), "%sHDC2", comma);
-    comma=",";
-  }
+
+  // Add 0x44-)x47 sensors to the list
+  sensor_i2c_44_47_info(msg, 1024, comma);
+
   if (LPS_1_exists) {
     sprintf (msg+strlen(msg), "%sLPS1", comma);
     comma=",";
@@ -249,12 +237,6 @@ void INFO_Do_WiFi() {
     sprintf (msg+strlen(msg), "%sSI", comma);
     comma=",";
   }
-#ifdef NOWAY
-  if (VEML7700_exists) {
-    sprintf (msg+strlen(msg), "%sVEML", comma);
-    comma=",";
-  }
-#endif
   if (BLX_exists) {
     sprintf (msg+strlen(msg), "%sBLX", comma);
     comma=",";
@@ -438,10 +420,9 @@ void INFO_Do_LoRaWAN() {
   //                                               sum = 201 bytes
 
   // AFM0LoRa = Adafruit Feather M0 LoRa
-  sprintf (msg, "\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0LoRa\",\"ver\":\"%s\",\"bv\":%d.%02d,\"hth\":%d,\"elev\":%d,\"rtro\":\"%s\"",
+  sprintf (msg, "\"at\":\"%s\",\"devid\":\"%s\",\"board\":\"AFM0LoRa\",\"ver\":\"%s\",\"bv\":%.2f,\"hth\":%d,\"elev\":%d,\"rtro\":\"%s\"",
     timestamp, DeviceID, versioninfo, 
-    (int)vbat, (int)(vbat*100)%100,
-    SystemStatusBits, cf_elevation, cf_rtro);
+    vbat, SystemStatusBits, cf_elevation, cf_rtro);
   
   // obs_period (1,5,6,10,15,20,30), 1 minute observation period is the default
   // daily_reboot Number of hours between daily reboots, A value of 0 disables this feature
@@ -636,22 +617,10 @@ void INFO_Do_LoRaWAN() {
     sprintf (msg+strlen(msg), "%sMCP4/gt2", comma);
     comma=",";
   }
-  if (SHT_1_exists) {
-    sprintf (msg+strlen(msg), "%sSHT1", comma);
-    comma=",";
-  }
-  if (SHT_2_exists) {
-    sprintf (msg+strlen(msg), "%sSHT2", comma);
-    comma=",";
-  }
-  if (HDC_1_exists) {
-    sprintf (msg+strlen(msg), "%sHDC1", comma);
-    comma=",";
-  }
-  if (HDC_2_exists) {
-    sprintf (msg+strlen(msg), "%sHDC2", comma);
-    comma=",";
-  }
+
+  // Add 0x44-)x47 sensors to the list
+  sensor_i2c_44_47_info(msg, 128, comma);
+
   if (LPS_1_exists) {
     sprintf (msg+strlen(msg), "%sLPS1", comma);
     comma=",";
@@ -668,12 +637,6 @@ void INFO_Do_LoRaWAN() {
     sprintf (msg+strlen(msg), "%sSI", comma);
     comma=",";
   }
-#ifdef NOWAY
-  if (VEML7700_exists) {
-    sprintf (msg+strlen(msg), "%sVEML", comma);
-    comma=",";
-  }
-#endif
   if (BLX_exists) {
     sprintf (msg+strlen(msg), "%sBLX", comma);
     comma=",";

@@ -34,7 +34,7 @@ float dsmux_readTemperature(uint8_t channel) {
   // Select the channel on the DS2482-800
   if (!ds248x.selectChannel(channel)) {
     // Handle error if channel selection fails
-    Serial.println("Failed to select channel");
+    Output("DSMUX:Select CH Err");
     return NAN; // Return 'Not a Number' to indicate an error
   }
 
@@ -140,9 +140,8 @@ void dsmux_initialize() {
       if (dsmux_sensor_exists[channel]) {
         float t = dsmux_readTemperature(channel);
 
-        sprintf (Buffer32Bytes, "  dst-%d=%d.%02d %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X",
-          channel, (int)t, (int)(t*100)%100,
-          addr[0],addr[1],addr[2],addr[3], addr[4],addr[5],addr[6],addr[7]);
+        sprintf (Buffer32Bytes, "  dst-%d=%.2f %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X",
+          channel, t, addr[0],addr[1],addr[2],addr[3], addr[4],addr[5],addr[6],addr[7]);
         Output(Buffer32Bytes);  
         count++;
       }

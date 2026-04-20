@@ -65,26 +65,29 @@ void rtc_timestamp() {
  * rtc_refresh() - Get time from WiFi network or GPS and refresh the RTC
  *=======================================================================================================================
  */
-void rtc_refresh() {
-  // Update the RTC clock from WiFi Network
+bool rtc_refresh() {
   if (LW_valid) {
-    gps_aquire();  // This will set RTC_valid to true when valid GPS time obtained
+    // We are a LoRaWAN Device
+    return(gps_aquire());  // This will set RTC_valid to true when valid GPS time obtained
   }
   else {
+    // We are a WiFi Device
     if (WiFi_valid) {
       WiFi_UpdateTime();
 
       // We still don't have time so try GPS if we have one.
       if (!RTC_valid) {
-        gps_aquire();
+        return(gps_aquire());
+      }
+      else {
+        return (true);
       }
     }
     else {
-      gps_aquire();
+      return(gps_aquire());
     }
   }
 }
-
 
 /* 
  *=======================================================================================================================
@@ -115,7 +118,9 @@ void rtc_initialize() {
   // Do a validation check on the year. 
   // Asumption is: If RTC not set, it will not have the current year.
   
-  if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
+  if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END) && 
+      (now.month() >= 1) && (now.month() <=12) &&
+      (now.day() >= 1) && (now.day() <=31)) {
     RTC_valid = true;
     Output("RTC:VALID");
   }

@@ -19,12 +19,12 @@
 #define HEARTBEAT_PIN     A1  // Connect to WatchDog Heartbeat
 
 #define MAX_MSGBUF_SIZE   1024
+#define RTC_UPDATE_INTERVAL 4                // 4 Hours from boot
 
 
 // Extern variables
 extern char versioninfo[];
 extern bool JustPoweredOn;              // Used to clear SystemStatusBits set during power on device discovery
-extern bool TurnLedOff;                 // Set true in rain gauge interrupt
 
 extern char msgbuf[MAX_MSGBUF_SIZE];    // Used to hold messages
 extern char *msgp;                      // Pointer to message text
