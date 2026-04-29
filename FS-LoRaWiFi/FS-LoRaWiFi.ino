@@ -109,7 +109,9 @@
  *                    Change from Serial to Output("DSMUX:Select CH Err");
  *                    Code clean up on BMX processing in OBS and Station monitor, utilizing BMX_1_type from initializtion
  *                    Code clean up switch to %.2f on sprintf 
+ *                    Add BMP581 and SMT45 - rework the i2c 0x44 - 0x47 sensore handling
  *     2026-04-20 RJB We now send multiple loRaWAN obs messages if we have payloads greater than 222 bytes.
+ *     2026-04-29 RJB Correction in Wind_SampleSpeed() on delta_ms.
  *                 
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config

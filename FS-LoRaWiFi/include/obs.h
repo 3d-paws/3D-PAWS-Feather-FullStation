@@ -38,11 +38,8 @@ extern char obsbuf[MAX_OBS_SIZE];
 extern float bmx_1_pressure;
 
 // Function prototypes
-int SendMsg_WiFi(char *msg);
 void OBS_Clear();
-void OBS_N2S_Add();
 void OBS_LOG_Add();
-bool OBS_Build();
 void OBS_Take();
 void OBS_Do();
 
