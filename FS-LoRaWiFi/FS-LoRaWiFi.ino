@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-2604120"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-260430"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
@@ -112,6 +112,7 @@
  *                    Add BMP581 and SMT45 - rework the i2c 0x44 - 0x47 sensore handling
  *     2026-04-20 RJB We now send multiple loRaWAN obs messages if we have payloads greater than 222 bytes.
  *     2026-04-29 RJB Correction in Wind_SampleSpeed() on delta_ms.
+ *     2026-04-30 RJB Added SHT Serial Number to initialization output and INFO. Also heater info.
  *                 
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config

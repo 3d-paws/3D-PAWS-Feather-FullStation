@@ -618,8 +618,8 @@ void INFO_Do_LoRaWAN() {
     comma=",";
   }
 
-  // Add 0x44-)x47 sensors to the list
-  sensor_i2c_44_47_info(msg, 128, comma);
+  // Add 0x44-0x47 sensors to the list
+  sensor_i2c_44_47_info(msg, 256, comma);
 
   if (LPS_1_exists) {
     sprintf (msg+strlen(msg), "%sLPS1", comma);
