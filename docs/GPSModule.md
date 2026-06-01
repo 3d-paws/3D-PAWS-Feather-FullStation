@@ -8,4 +8,4 @@ Use the below GPS module
 - [Adafruit Mini GPS PA1010D - UART and I2C - STEMMA QT](https://www.adafruit.com/product/4415)
 
 ## Wiring
-The GPS module connects to the i2c buss. A command will put the GPS to sleep. A pulse to the GPS's Reset  pin is required to wake the GPS up.  Connect the GPS Reset pin to the Feather D5 pin.
+The GPS module connects to the i2c bus. A command will put the GPS to sleep. A pulse to the GPS's Reset  pin is required to wake the GPS up.  Connect the GPS Reset pin to the Feather D5 pin.
