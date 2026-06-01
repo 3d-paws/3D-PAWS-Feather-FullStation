@@ -52,7 +52,7 @@
 ### [Configuration File Example](docs/Configuration.md)
 ### [Connecting a Device to The Things Network (TTN)](docs/ConnectToTTN.md)
 ### [Daily Reboot](docs/DailyReboot.md)
-### [EEPROM Module](docs/EEPROMModule.md)
+### [EEPROM Module](docs/EEPROM_Module.md)
 ### [GPS Module](docs/GPSModule.md)
 ### [INFO (Station Information) LoRaWAN](docs/INFO_LoRa.md)
 ### [INFO (Station Information) WiFi](docs/INFO_WiFi.md)
