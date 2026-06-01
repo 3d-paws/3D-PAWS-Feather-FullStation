@@ -72,6 +72,6 @@
 ### [Connecting a Device to The Things Network (TTN)](docs/ConnectToTTN.md)
 ### [Adding a Webhook to The Things Network (TTN)](docs/AddWebhookToTTN.md)
 ### [Adding a Gateway to The Things Network (TTN)](docs/AddGatewayToTTN.md)
-
+### [LoRaWAN Private Network Direction](docs/LoRaWANPrivateNetworkDirection.md)
 
 
