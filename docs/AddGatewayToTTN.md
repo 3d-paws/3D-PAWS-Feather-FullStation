@@ -120,7 +120,7 @@ Save file as:  isrgrootx1.pem
 
 You will need the TTN Server URL and Port number obtained from TTN for LNS configuration on the gateway.
 
-Select on of the following:
+Select one of the following:
 
 | Region/Cluster | LNS WSS URI (port 8887)                     |
 | -------------- | ------------------------------------------- |
