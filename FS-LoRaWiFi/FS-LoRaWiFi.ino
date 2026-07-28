@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FSLW-260430"  // Full Station LoRaWiFi - Release Date
+#define VERSION_INFO "FSLW-260728"  // Full Station LoRaWiFi - Release Date
 
 /*
  *======================================================================================================================
@@ -113,6 +113,12 @@
  *     2026-04-20 RJB We now send multiple loRaWAN obs messages if we have payloads greater than 222 bytes.
  *     2026-04-29 RJB Correction in Wind_SampleSpeed() on delta_ms.
  *     2026-04-30 RJB Added SHT Serial Number to initialization output and INFO. Also heater info.
+ *     2026-07-28 RJB Fixed bugs
+ *                    In OBS_Build_WiFi() added & in sprintf (obsbuf+strlen(obsbuf), "&at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d"
+ *                    In OBS_Send_LoRaWAN() added & in sprintf (loramsg, "&bv=%.2f", obs.bv)
+ *                    In void OBS_Do() changed to use OBS Log server not Info server on the send
+ *                    In WiFi_Send_http(s) functions handling -1 from read and and printing of the rest of the response
+ *                    EEPROM Init check if n2sfp is not 0 and there is no n2s file then reset the file offset
  *                 
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config

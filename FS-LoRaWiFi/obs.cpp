@@ -699,7 +699,7 @@ bool OBS_Build_WiFi() {
     sprintf (obsbuf, "%s?key=%s&instrument_id=%d&devid=%s",
       cf_urlpath, cf_apikey, cf_instrument_id, DeviceID);
 
-    sprintf (obsbuf+strlen(obsbuf), "at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
+    sprintf (obsbuf+strlen(obsbuf), "&at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d",
       dt->tm_year+1900, dt->tm_mon+1,  dt->tm_mday,
       dt->tm_hour, dt->tm_min, dt->tm_sec);
     sprintf (obsbuf+strlen(obsbuf), "&bv=%.2f", obs.bv); 
@@ -768,7 +768,7 @@ void OBS_Send_LoRaWAN() {
 
     sensor_payload = LORA_PAYLOAD - (strlen (header) + strlen (hthbits));
 
-    sprintf (loramsg, "bv=%.2f", obs.bv); 
+    sprintf (loramsg, "&bv=%.2f", obs.bv); 
     
     for (int s=0; s<MAX_SENSORS; s++) {
       if (obs.sensor[s].inuse) {
@@ -880,7 +880,7 @@ void OBS_Do() {
   else if (WiFi_valid) {
     if (OBS_Build_WiFi()) {  // Build Observation to Send in obsbuf
       // WiFi_Send() returns 0=not sent, -500=ErrorCode Not Sent, 1=Sent
-      if (WiFi_Send(obsbuf, cf_info_server, cf_info_server_port, cf_info_urlpath, METHOD_POST, cf_info_apikey) != 1) {
+      if (WiFi_Send(obsbuf, cf_webserver, cf_webserver_port, cf_urlpath, METHOD_GET, cf_apikey) != 1) {
         Output("FS->PUB FAILED");
         OBS_N2S_Add_WiFi();
         OBS_Clear();

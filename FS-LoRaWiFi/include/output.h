@@ -35,9 +35,14 @@ void OLED_write(const char *str);
 void OLED_write(const __FlashStringHelper *str);
 void OLED_write_noscroll(const char *str);
 void OLED_initialize();
+
+void Serial_write(char c);
+void Serial_write(const char *str, int base);
 void Serial_write(const char *str);
+
 void Serial_writeln(const char *str);
 void Serial_writeln(const __FlashStringHelper *str);
+
 void Serial_Initialize();
 void Output(const char *str);
 void Output(const __FlashStringHelper *str);

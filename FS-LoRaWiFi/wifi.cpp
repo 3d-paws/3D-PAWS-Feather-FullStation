@@ -274,7 +274,11 @@ void WiFi_connect_wait(int wait_seconds) {
   int posted = 0;
 
   if (WiFi.status() == WL_CONNECTED) {
-    Output("WiFi:SEND->HTTP");
+    snprintf (buf, sizeof(buf), "WiFi:SEND->%s:%d", webserver, webserver_port);
+    Output(buf);
+
+    // WiFi_NSLookup(webserver);
+
     if (!wifi.connect(webserver, webserver_port)) {
       Output("WiFi:HTTP FAILED");
     }
@@ -321,32 +325,99 @@ void WiFi_connect_wait(int wait_seconds) {
         
       // Read first line of HTTP Response, then get out of the loop
       r=0;
+      unsigned long startTime = millis();
+      unsigned long timeout = 5000; // 5 seconds timeout 
+      bool read_negative_one=false; 
       while ((wifi.connected() || wifi.available() ) && r<63 && (posted == 0)) {
-        response[r] = wifi.read();
-        response[++r] = 0;  // Make string null terminated
-        if (strstr(response, "200 OK") != NULL) { // Does response includes a "200 OK" substring?
-          posted = 1;
-          break;
+        if (wifi.available()) {
+          int val = wifi.read(); //gets byte from buffer 0 = no data, -1 means error
+          if (val == -1) {
+            // No more data, exit loop
+            read_negative_one=true;
+            Serial_writeln("");
+            Output(F("READ -1"));
+            break;           
+          }
+          else {
+            response[r] = (char)val;
+            response[++r] = 0;  // Make string null terminated
+            if (strstr(response, "200 OK") != NULL) { // Does response includes a "200 OK" substring?
+              posted = true;
+              break;
+            }
+            if (strstr(response, "500 Internal") != NULL) { // Does response includes a This Error substring?
+              posted = -500;
+              break;
+            }
+            if ((response[r-1] == 0x0A) || (response[r-1] == 0x0D)) { // LF or CR
+              // if we got here then we never saw the 200 OK
+              Serial_writeln("");
+              Output(F("OBS:HTTP RESP EOL"));
+              break;
+            }
+          }
         }
-        if (strstr(response, "500 Internal") != NULL) { // Does response includes a This Error substring?
-          posted = -500;
-          break;
-        }        
-        if ((response[r-1] == 0x0A) || (response[r-1] == 0x0D)) { // LF or CR
-          // if we got here then we never saw the 200 OK
-          break;
+        else {
+          // No data available yet, check timeout
+          if (millis() - startTime > timeout) {
+            Serial_writeln("");
+            Serial_writeln(F("OBS:HTTP RESP TIMEOUT"));
+            break;
+          }
+          delay(10); // very short delay to prevent tight loop         
         }
       }
-  
-      // Read rest of the response after first line
-      // while (wifi.connected() || wifi.available()) { //connected or data available
-      //   char c = wifi.read(); //gets byte from ethernet buffer
-      //   Serial.print (c);
-      // }
 
-      sprintf (buf, "WiFi:%s", response);
+      sprintf (buf, "WiFi RESP:%s", response);
       Output(buf);
-      
+
+      // Print response as hex
+      Serial_write(response, HEX);
+      Serial_write("");
+
+      // Early closure of a network connection on the MKR NB 1500 can contribute to communication 
+      // instability or the need for modem resets in some edge cases due to how the firmware handles 
+      // connection states
+
+      // Read rest of the response after first line - I have seen this hang with unknow characters be read
+      if (!read_negative_one) {
+        int count=0;
+        startTime = millis();   
+        timeout = 5000; // 5 seconds timeout
+        while (wifi.connected() || wifi.available()) { //connected or data available
+          if (wifi.available()) {
+            int val = wifi.read(); //gets byte from buffer 0 = no data, -1 means error
+            if (val == -1) {
+              // No more data, exit loop
+              Serial_writeln("");
+              Output(F("READ -1"));
+              break;           
+            }
+            else {
+              char c = (char)val;
+              Serial_write (c);
+              if (++count > 1000){
+                Serial_writeln("");
+                Output("OBS:HTTP RESP BREAK");
+                break;
+              }
+              // Reset startTime each time new data is received
+              startTime = millis();
+            }
+          }
+          else {
+            // No data available yet, check timeout
+            if (millis() - startTime > timeout) {
+              Serial_writeln("");
+              Output(F("OBS:HTTP RESP TIMEOUT REST"));
+              break;
+            }
+            delay(10); // very short delay to prevent tight loop
+          }  
+        }
+        Serial_writeln("");
+      }
+
       // Server disconnected from clinet. No data left to read. Disconnect client from the server
       wifi.stop();
 
@@ -369,7 +440,10 @@ int WiFi_Send_https(char *msg, char *webserver, int webserver_port, char *webser
   int posted = 0;
 
   if (WiFi.status() == WL_CONNECTED) {
-    WiFi_NSLookup(webserver);
+    snprintf (buf, sizeof(buf), "WiFi:SEND->%s:%d", webserver, webserver_port);
+    Output(buf);
+
+    // WiFi_NSLookup(webserver);
 
     wifi_ssl.setTimeout(15000);
     wifi_ssl.stop();
@@ -421,31 +495,98 @@ int WiFi_Send_https(char *msg, char *webserver, int webserver_port, char *webser
         
       // Read first line of HTTP Response, then get out of the loop
       r=0;
+      unsigned long startTime = millis();
+      unsigned long timeout = 5000; // 5 seconds timeout 
+      bool read_negative_one=false; 
       while ((wifi_ssl.connected() || wifi_ssl.available() ) && r<63 && (posted == 0)) {
-        response[r] = wifi_ssl.read();
-        response[++r] = 0;  // Make string null terminated
-        if (strstr(response, "200 OK") != NULL) { // Does response includes a "200 OK" substring?
-          posted = 1;
-          break;
+        if (wifi_ssl.available()) {
+          int val = wifi_ssl.read(); //gets byte from buffer 0 = no data, -1 means error
+          if (val == -1) {
+            // No more data, exit loop
+            read_negative_one=true;
+            Serial_writeln("");
+            Output(F("READ -1"));
+            break;           
+          }
+          else {
+            response[r] = (char)val;
+            response[++r] = 0;  // Make string null terminated
+            if (strstr(response, "200 OK") != NULL) { // Does response includes a "200 OK" substring?
+              posted = true;
+              break;
+            }
+            if (strstr(response, "500 Internal") != NULL) { // Does response includes a This Error substring?
+              posted = -500;
+              break;
+            }
+            if ((response[r-1] == 0x0A) || (response[r-1] == 0x0D)) { // LF or CR
+              // if we got here then we never saw the 200 OK
+              Serial_writeln("");
+              Output(F("OBS:HTTPS RESP EOL"));
+              break;
+            }
+          }
         }
-        if (strstr(response, "500 Internal") != NULL) { // Does response includes a This Error substring?
-          posted = -500;
-          break;
-        }        
-        if ((response[r-1] == 0x0A) || (response[r-1] == 0x0D)) { // LF or CR
-          // if we got here then we never saw the 200 OK
-          break;
+        else {
+          // No data available yet, check timeout
+          if (millis() - startTime > timeout) {
+            Serial_writeln("");
+            Serial_writeln(F("OBS:HTTP RESP TIMEOUT"));
+            break;
+          }
+          delay(10); // very short delay to prevent tight loop         
         }
       }
-  
-      // Read rest of the response after first line
-      // while (wifi_ssl.connected() || wifi_ssl.available()) { //connected or data available
-      //   char c = wifi_ssl.read(); //gets byte from ethernet buffer
-      //   Serial.print (c);
-      // }
 
       sprintf (buf, "WiFi:%s", response);
       Output(buf);
+
+      // Print response as hex
+      Serial_write(response, HEX);
+      Serial_write("");
+
+      // Early closure of a network connection on the MKR NB 1500 can contribute to communication 
+      // instability or the need for modem resets in some edge cases due to how the firmware handles 
+      // connection states
+
+      // Read rest of the response after first line - I have seen this hang with unknow characters be read
+      if (!read_negative_one) {
+        int count=0;
+        startTime = millis();   
+        timeout = 5000; // 5 seconds timeout
+        while (wifi_ssl.connected() || wifi_ssl.available()) { //connected or data available
+          if (wifi_ssl.available()) {
+            int val = wifi_ssl.read(); //gets byte from buffer 0 = no data, -1 means error
+            if (val == -1) {
+              // No more data, exit loop
+              Serial_writeln("");
+              Output(F("READ -1"));
+              break;           
+            }
+            else {
+              char c = (char)val;
+              Serial_write (c);
+              if (++count > 1000){
+                Serial_writeln("");
+                Output("OBS:HTTPS RESP BREAK");
+                break;
+              }
+              // Reset startTime each time new data is received
+              startTime = millis();
+            }
+          }
+          else {
+            // No data available yet, check timeout
+            if (millis() - startTime > timeout) {
+              Serial_writeln("");
+              Output(F("OBS:HTTPS RESP TIMEOUT REST"));
+              break;
+            }
+            delay(10); // very short delay to prevent tight loop
+          }  
+        }
+        Serial_writeln("");
+      }
       
       // Server disconnected from clinet. No data left to read. Disconnect client from the server
       wifi_ssl.stop();
@@ -503,7 +644,7 @@ void WiFi_initialize() {
        (cf_instrument_id < 0) ||
        (strcmp(cf_ntpserver,"") == 0)) {
         
-     Output("HALT:INVALID CFG");
+     Output("HALT:INVALID WIFI CFG");
 
      // Halting - Let WatchDog reboot us in 5 minutes
      while (true) {

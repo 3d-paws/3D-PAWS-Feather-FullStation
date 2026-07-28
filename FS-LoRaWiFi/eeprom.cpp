@@ -141,16 +141,20 @@ void EEPROM_Validate() {
 
   eeprom_i2c.read(eeprom_address, eeprom_ptr, sizeof(eeprom));
 
-  if (!EEPROM_Valid() || SerialConsoleEnabled) {
+  if (!EEPROM_Valid()) {
     EEPROM_ClearRainTotals(current_time);
-    if (SerialConsoleEnabled) {
-      Output(F("EEPROM CLEARED:SCE")); // Serial Console Enabled
-    }
-    else {
-      Output(F("EEPROM CLEARED:CSE")); // Checksum error
-    }
+    Output(F("EEPROM CLEARED:CSE")); // Checksum error
   }
   else {
+    // If n2sfp is not 0 and there is no n2s file then reset the file offset
+    if (eeprom.n2sfp) {
+      if (!SD.exists(SD_n2s_file)) {
+        eeprom.n2sfp=0;
+        EEPROM_ChecksumUpdate();
+        eeprom_i2c.write(eeprom_address, eeprom_ptr, sizeof(eeprom));
+      }
+    }
+
     uint32_t seconds_today                 = current_time % 86400;
     uint32_t seconds_at_0000               = current_time - seconds_today;
     uint32_t seconds_at_rollover           = seconds_at_0000 + (cf_rtro_hour * 3600) + (cf_rtro_minute * 60);

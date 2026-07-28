@@ -290,6 +290,38 @@ void Serial_flush() {
  * Serial_write() 
  * ======================================================================================================================
  */
+void Serial_write(char c) {
+  if (SerialConsoleEnabled) {
+    Serial.print(c);
+  }
+}
+
+/*
+ * ======================================================================================================================
+ * Serial_write() 
+ * ======================================================================================================================
+ */
+void Serial_write(const char *str, int base) {
+  if (SerialConsoleEnabled) {
+    if (base == HEX) {
+      while (*str) {
+        byte b = *str++;
+        if (b < 16) Serial.print("0");
+        Serial.print(b, HEX);
+        Serial.print(" ");
+      }
+    }
+    else {
+      Serial.print(str); // default to plain string print
+    }
+  }
+}
+
+/*
+ * ======================================================================================================================
+ * Serial_write() 
+ * ======================================================================================================================
+ */
 void Serial_write(const char *str) {
   if (SerialConsoleEnabled) {
     Serial.print(str);
