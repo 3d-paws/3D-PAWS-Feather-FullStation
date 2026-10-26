@@ -1,0 +1,680 @@
+#define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
+#define VERSION_INFO "FFS-261126"  // Feather Full Station - Release Date
+
+/*
+ *======================================================================================================================
+ * 3D-PAWS Feather FullStation
+ *   Board Type : Adafruit Feather M0 LoRaWAN Board https://www.adafruit.com/product/3178
+ *   Board Type : Adafruit Feather M0 WiFi Board    https://www.adafruit.com/product/3010
+ *   Board Type : Adafruit Feather M0 Adalogger     https://www.adafruit.com/product/2796
+ *
+ *   Author: Robert Bubon
+ *   Version History
+ *     2024-01-01 RJB Initial
+ *     2024-03-25 RJB Swapped Rain Gauge Pins Now: A3=RG1, A2=RG2
+ *     2024-04-09 RJB Limited the EQ freqs used for TTN to just 868.1 868.3 868.5
+ *     2024-04-10 RJB Backed out the above just need to define the additional freqs on device at TTN
+ *     2024-04-11 RJB When Serial Console Enabled, EEPRM is cleared at Boot
+ *                    System status bit cleared for wind direction
+ *                    System status bit setup for eeprom
+ *                    Stopped clearing the GPS status bit if not found at boot
+ *     2024-04-14 RJB Converted to OTAA
+ *     2024-04-21 RJB Increased wait time to resend from 5s to 10. This helped with n2s sending.
+ *                    Changed how long we stay in n2s sending base on interval of obs (1s, 5s 15s)
+ *     2024-04-30 RJB Fixed bug in Station Monitor
+ *                    Station Monitor Line 3 now delays 5s between updates
+ *     2024-06-10 RJB Modified SF.h - isValidHexString(), hexStringToUint32(), SDC.h - SD_findKey()
+ *                    Added HI, WBT, WBGT
+ *     2024-06-23 RJB Copyright Added
+ *     2024-07-17 RJB Removed #include <ArduinoLowPower.h> not needed
+ *     2024-07-18 RJB Pin changes A2 Wind, A3 RG1, A4 RG2, A5, Distance
+ *     2024-08-09 RJB Merged changed into LoRaWAN code base to support WiFi boards
+ *                    Renamed to FullStaion LoRaWan WiFi or FSLW
+ *     2024-08-14 RJB Quality check added to WiFi NTP time 
+ *                    Changed OBS_Send to look for http error code 500. For N2S being sent a 500 response
+ *                    means I move past that in the N2S file
+ *                    If year is not valid we will not send a observation.
+ *                    Added define statements for valid start and end years
+ *     2024-08-25 RJB hih8_getTempHumid() modified removing Wire.endTransmission() call.
+ *                    pm25aqi_initialize() now calls I2C_Device_Exist(PM25AQI_ADDRESS) instead of doing wire call directly.
+ *     2024-08-26 RJB Moved the WiFi connection check / reconnect to WiFi_Send()
+ *     2024-08-27 RJB Changed Distance sensor to multiply raw value by 5 for 5m, 10 for 10m, OBS will be in mm
+ *     2024-10-07 RJB Improved hi_calculate() function.
+ *     2024-11-05 RJB Discovered BMP390 first pressure reading is bad. Added read pressure to bmx_initialize()
+ *                    Bug fixes for 2nd BMP sensor in bmx_initialize() using first sensor data structure
+ *                    Now will only send humidity if bmx sensor supports it.
+ *     2025-01-26 RJB Added support for Tinovi moisture sensors (Leaf, Soil, Multi Level Soil)
+ *                    Added support for GetDeviceID()
+ *                    Added support for observation intervals 1,5,6,10,15,20,30
+ *     2025-09-11 RJB In OBS fixed casting bug on rain collection. Added (float)
+ *                    (rain > (((float) rgds / 60) * QC_MAX_RG))
+ *                    Added tmsms5 that was forgotten
+ *     2025-09-17 RJB Renamed WRDB.h to WRDA.h
+ *                    Added SD_crt_file file
+ *                    Added clear rain totals CRT.TXT
+ * 
+ *     2026-02-19 RJB Release Major Update 
+ *                    Added lora wan options to config file
+ *                    Added SDU boot
+ *                    SD_ClearRainTotals(); // Clear from EEPROM if CRT.TXT exists
+ *                    Added INFO_Do() 
+ *                    Library Update and Changes
+ *                    Changed SD to SdFat 2.3.0
+ *                    Add Adafruit_ZeroDMA, LeafArduinoI2c, i2cArduino, i2cMultiArd
+ *                    MCCI LoRaWAN LMIC library 4.1.1 -> 5.0.1
+ *                    BMP280 2.6.2 -> 2.6.8
+ *                    BMP3XX 2.1.2 -> 2.1.6
+ *                    BusIO 1.11.6 -> 1.17.4
+ *                    GFX 1.11.1 -> 1.12.4
+ *                    HTU21DF 1.1.0 -> 1.1.2
+ *                    MCP9808 2.0.0 -> 2.0.2
+ *                    PM25_AQI 1.0.6 -> 2.0.0
+ *                    SHT31 2.2.0 -> 2.2.2
+ *                    SI1145 1.2.0 -> 1.2.2
+ *                    SSD1306 2.5.3-> 2.5.16
+ *                    Unified_Sensor 1.1.5 -> 1.1.15
+ *                    VEML7700 2.1.2 -> 2.1.6
+ *                    RTClib 2.0.3 -> 2.1.4     
+ *                    Fixed bug in Wind_SampleDirection(), if AS5600 went offline we would stop doing wind. 
+ *                    Moved A4/A5 to OP1/OP2 
+ *                    Added OP2 option to read voltaic voltage
+ *                    Documentation Added
+ * 
+ *     2026-02-24 RJB Setup RTC refresh every 4 hours 
+ *                    Added #defines for the OP pin value check  
+ * 
+ *     2026-02-26 RJB Removed the support for Tinovi MultiLevel Soil Moisture (4 Soil and 2 Temperature) 
+ *     2026-03-02 RJB AQS set tot the 3 environmental readings
+ *                    Bug Fix added in setup()
+ *                    mslp_initialize();
+ *                    hdc_initialize();
+ *                    lps_initialize();
+ *                    Bug Wind_Distance_Air_Initialize() has bit OR not logic OR
+ *     2026-03-04 RJB Info WiFi now reports LoRaWAN region (lwr)  
+ *     2026-03-17 RJB Bug fix in statmon.cpp BMX identification
+ *                    Added DSMUX 1-Wire support for 8 temperature sensors dst0-7
+ *                    Added pinmode INPUT to wind rain OP1, and OP2
+ *                    Added support to set rain total rollover
+ *                    Added rtro range changed to 0-23 :00,15,30,45  
+ *     2026-03-20 RJB Modified EEPROM_UpdateRainTotals() to only update eeprom on change.
+ *     2026-03-29 RJB Added volatile to interrupt routine variable definations, moved TurnLedOff defination to wrda
+ *     2026-04-12 RJB Changed GetDeviceID() to be a length of 16 instead of 24
+ *                    Bug Fix OBS_N2S_Add(); DeviceID unneeded param
+ *     2026-04-15 RJB Disabled interrupts when reading and setting shared values with the ISRs
+ *                    Created functions to obtain rg1 and rg2 values
+ *                    Modified rain ISR to only call millis() once.
+ *                    It is possible for the RTC PCF8523 or its library to give you a month value of 0 added check.
+ *                    Update GPS to power down the unit
+ *                    Removed support for VEML7700 Lux sensor address 0x10 collides with GPS
+ *                    Changed GetDeviceID() to be a length of 16 instead of 24
+ *                    Change from Serial to Output("DSMUX:Select CH Err");
+ *                    Code clean up on BMX processing in OBS and Station monitor, utilizing BMX_1_type from initializtion
+ *                    Code clean up switch to %.2f on sprintf 
+ *                    Add BMP581 and SMT45 - rework the i2c 0x44 - 0x47 sensore handling
+ *     2026-04-20 RJB We now send multiple loRaWAN obs messages if we have payloads greater than 222 bytes.
+ *     2026-04-29 RJB Correction in Wind_SampleSpeed() on delta_ms.
+ *     2026-04-30 RJB Added SHT Serial Number to initialization output and INFO. Also heater info.
+ *     2026-07-28 RJB Fixed bugs
+ *                    In OBS_Build_WiFi() added & in sprintf (obsbuf+strlen(obsbuf), "&at=%d-%02d-%02dT%02d%%3A%02d%%3A%02d"
+ *                    In OBS_Send_LoRaWAN() added & in sprintf (loramsg, "&bv=%.2f", obs.bv)
+ *                    In void OBS_Do() changed to use OBS Log server not Info server on the send
+ *                    In WiFi_Send_http(s) functions handling -1 from read and and printing of the rest of the response
+ *                    EEPROM Init check if n2sfp is not 0 and there is no n2s file then reset the file offset
+ * 
+ *     2026-10-26 RJB Major Update with Blues NoteCard Support Added
+ *                    We now check if SD Card is on a 
+ *                        Adafruit Adalogger FeatherWing with CS Pin #10 or a 
+ *                        Adafruit Feather M0 Adalogger with CS Pin #4
+ *                    9% program space left. Need to conserve
+ *                      Removed HIH sensor support
+ *                      Removed the Station Monitor code.
+ *                      Just BMP390 and BMP588 supported so no humidity reported aka bh1 or bh2 
+ *                      Removed LPS35HW Pressure and Temperature
+ *                      Removed HDC302x Temperature Humidity
+ *                    Changed pi from 3.14156 to 3.14159 
+ *                    Moved BMP,SHT,MCP,HTU,pm25aqi to their own sensor files. Sensors_i2c_44_47 files removed
+ *                    Broke down wdra in to sensor_wind and sensor_rgop
+ *                    Removed support for Silicon Labs Si1145 - I2C - UV/IR/Visible Light Sensor 
+ *                    Sensors.h & .cpp became derived.h & .cpp
+ *                    Renamed FS-LoRaWiFi src directory and main code file to FullStation 
+ *                    Bug fix, on the chunking of LoRaWAN packects I missed adding the one that would not fit when buffer full
+ *                      Also got rid of the need for count variable in OBS_Send_LoRaWAN()
+ *                    Bug fix, vbat_get() changes to 4096.0f resolution and made everything a float.
+ *                    Bug fix, removed the /100.0f from the bmp58x.
+ *                    Brokedown info in to 4 files 
+ *                    Added Sensors ltr390 and bh1750
+ *                                  
+ *  Compile for EU Frequencies 
+ *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
+ *    cp lmic_project_config.h-eu lmic_project_config.h
+ *  
+ *  Compile for US Frequencies 
+ *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
+ *    cp lmic_project_config.h-us lmic_project_config.h
+ * 
+ *  Thoughts - If were to add a RFM95 LoRa module to a Feather M0 WiFi board, we would need to configure 
+ *  SPI1 in the variant.h.  Perhaps pins assignments would be:
+ *   Feather M0 SPI1 variant.h
+ *    #define PIN_SPI1_MOSI (5u)   // D5
+ *    #define PIN_SPI1_SCK  (6u)   // D6  
+ *    #define PIN_SPI1_MISO (14u)  // A4
+ *    #define PERIPH_SPI1   sercom1
+ * 
+ *  Also need to map the rest of the RFM95 Pins to see if we can make it work.
+ *======================================================================================================================
+ */
+
+/*
+ * Required Libraries:
+ *  adafruit-HTU21DF        https://github.com/adafruit/Adafruit_HTU21DF_Library - I2C ADDRESS 0x40
+ *  adafruit-BusIO          https://github.com/adafruit/Adafruit_BusIO 
+ *  Adafruit_MCP9808        https://github.com/adafruit/Adafruit_MCP9808_Library - I2C ADDRESS 0x18
+ *  Adafruit_BMP3XX         https://github.com/adafruit/Adafruit_BMP3XX          - I2C ADDRESS 0x77 and (SD0 to GND = 0x76)
+ *  Adafruit_BMP5xx         https://github.com/adafruit/Adafruit_BMP5xx          - I2C ADDRESS 0x47 and 0x47
+ *  Adafruit_GFX            https://github.com/adafruit/Adafruit-GFX-Library
+ *  Adafruit_Sensor         https://github.com/adafruit/Adafruit_Sensor
+ *  Adafruit_SHT31          https://github.com/adafruit/Adafruit_SHT31           - I2C ADDRESS 0x44 and 0x45 when ADR Pin High
+ *  Adafruit_SHT4x          https://github.com/adafruit/Adafruit_SHT4x           - I2C ADDRESS 0x44
+ *  Adafruit_SSD1306        https://github.com/adafruit/Adafruit_SSD1306         - I2C ADDRESS 0x3C  
+ *  Adafruit_PM25AQI        https://github.com/adafruit/Adafruit_PM25AQI         - I2C ADDRESS 0x12 - Modified to Compile, Adafruit_PM25AQI.cpp" line 104
+ *  Adafruit LTR390         https://github.com/adafruit/Adafruit_LTR390          - I2C ADDRESS 0x53
+ *  RTCLibrary              https://github.com/adafruit/RTClib
+ *  SdFat                   https://github.com/greiman/SdFat.git - 1.0.16 by Bill Greiman
+ *  SENS0390                https://wiki.dfrobot.com/Ambient_Light_Sensor_0_200klx_SKU_SEN0390 - DFRobot_B_LUX_V30B - 1.0.1 I2C ADDRESS 0x94
+ *  EEPROM                  https://docs.particle.io/reference/device-os/api/eeprom/eeprom/ , https://www.adafruit.com/product/5146
+ *  SpatkFun_I2C_GPS        https://github.com/sparkfun/SparkFun_I2C_GPS_Arduino_Library - I2C ADDRESS 0x10
+ *  LeafSens                https://github.com/tinovi/LeafArduinoI2c                     - I2C ADDRESS 0x61
+ *  i2cArduino              https://github.com/tinovi/i2cArduino                         - I2C ADDRESS 0x63
+ *  BH1750                  https://github.com/claws/BH1750                              - I2C ADDRESS 0x23
+ *  MCCI_LoRaWAN_LMIC_library https://github.com/mcci-catena/arduino-lmic
+ *  WiFi101                 http://www.arduino.cc/en/Reference/WiFi101
+ *  FlashStorage            https://github.com/cmaglie/FlashStorage
+ */
+ 
+/*
+ * ======================================================================================================================
+ * Pin Definitions
+ * 
+ * Board Label   Arduino  Info & Usage                   Grove Shield Connector   
+ * ======================================================================================================================
+ * RST
+ * 3V            3v3 Power
+ * ARef
+ * GND
+ * A0            A0       WatchDog Trigger               Grove A0
+ * A1            A1       WatchDog Heartbeat             Grove A0
+ * A2            A2       Interrupt For Anemometer       Grove A2
+ * A3            A3       Interrupt For Rain Gauge 1     Grove A2
+ * A4            A4       Option Pin 1                   Grove A4
+ * A5            A5       Option Pin 2                   Grove A4
+ * SCK           SCK      SPI0 Clock                     Not on Grove               
+ * MOS           MOSI     Used by SD Card                Not on Grove
+ * MIS           MISO     Used by SDCard                 Not on Grove
+ * RX0           D0                                      Grove UART
+ * TX1           D1                                      Grove UART 
+ * io1           DIO1     Connects to D6 for LoRaWAN     Not on Grove (Particle Pin D9)
+
+ * BAT           VBAT Power
+ * En            Control - Connect to ground to disable the 3.3v regulator
+ * USB           VBUS Power
+ * 13            D13      LED                            Not on Grove 
+ * 12            D12      Serial Console Enable          Not on Grove
+ * 11            D11                                     Not on Grove
+ * 10            D10      Used by SD Card as CS          Grove D4  (Particle Pin D5)
+ * 9             D9/A7    Voltage Battery Pin            Grove D4  (Particle Pin D4)
+ * 6             D6       Connects to DIO1 for LoRaWAN   Grove D2  (Particle Pin D3)
+ * 5             D5       Connects to GPS RST            Grove D2  (Particle Pin D2)
+ * SCL           D3       i2c Clock                      Grove I2C_1
+ * SDA           D2       i2c Data                       Grove I2C_1 
+ * RST
+
+ * 
+ * Not exposed on headers
+ * D8 = LoRa NSS aka Chip Select CS
+ * D4 = LoRa Reset
+ * D3 = LoRa DIO
+ * 
+ * D8 = WiFI
+ * D7 = WiFI
+ * D4 = WiFI
+ * D2 = WiFI
+ * ======================================================================================================================
+ */
+
+/*
+ * ======================================================================================================================
+ * Add SDUBoot Support for UPDATE.BIN on SD card
+ * ======================================================================================================================
+ */
+#include "boot/SDU.h"
+
+/* 
+ *=======================================================================================================================
+ * Local Includes
+ *=======================================================================================================================
+ */
+#include "include/ssbits.h"         // System Status Bits
+#include "include/feather.h"        // Feather Related Board Functions and Definations
+#include "include/support.h"        // Support Functions
+#include "include/output.h"         // Serial and OLED Output Functions
+#include "include/nvcf.h"           // Non Volitile Configuration
+#include "include/sdcard.h"         // SD Card Functions
+#include "include/time.h"           // Time Management Functions
+
+#include "include/eeprom.h"         // EEPROM Functions
+#include "include/gps.h"            // GPS Support Functions
+#include "include/mux.h"            // Mux Functions for mux connected sensors
+#include "include/dsmux.h"          // Dallas One Wire Mux Functions 
+
+#include "include/wifi.h"           // Wifi Functions
+#include "include/lorawan.h"        // LoRaWAN Functions
+#include "include/notecard.h"       // Notecard Functions
+
+#include "include/sensor_rgop.h"    // Rain and OptionPin Functions
+#include "include/sensor_wind.h"    // Rain and OptionPin Functions
+#include "include/sensor_bmp.h"     // Bosch I2C Sensor Functions
+#include "include/sensor_sht.h"     // Sensirion I2C Sensor Functions
+#include "include/sensor_mcp.h"     // MicroChip mcp9808 I2C Sensor Functions
+#include "include/sensor_htu.h"     // HTU21DF I2C Sensor Functions
+#include "include/sensor_pm25aqi.h" // PM25AQI I2C Sensor Functions
+#include "include/sensor_tlw.h"     // Tinovi Leaf Wetness I2C Sensor Functions
+#include "include/sensor_tsm.h"     // Tinovi Soil Moisture I2C Sensor Functions
+#include "include/sensor_bh1750.h"  // DFRobot SEN0562 I2C Ambient Light Sensor Functions
+
+#include "include/derived.h"        // Derived OBS Functions
+#include "include/obs.h"            // Observation Functions
+#include "include/info.h"           // Info Functions
+#include "include/main.h"
+
+/*
+ * ======================================================================================================================
+ *  Globals
+ * ======================================================================================================================
+ */
+bool JustPoweredOn = true;               // Used to clear SystemStatusBits set during power on device discovery
+
+char versioninfo[sizeof(VERSION_INFO)];  // allocate enough space including null terminator
+char msgbuf[MAX_MSGBUF_SIZE];            // Used to hold messages
+char *msgp;                              // Pointer to message text
+char Buffer32Bytes[32];                  // General storage
+
+unsigned long Time_of_obs = 0;           // unix time of observation
+unsigned long Time_of_next_obs = 0;      // time of next observation
+
+// Local
+int DailyRebootCountDownTimer;
+unsigned long nextTimeRefresh=0;         // Time of Next Time refresh
+unsigned long nextinfo=0;                // Time of Next INFO transmit
+
+/* 
+ *=======================================================================================================================
+ * time_to_next_obs() - This will return milliseconds to next observation
+ *=======================================================================================================================
+ */
+unsigned long time_to_next_obs() {
+  if (scv.obsi == 1) {
+    return (millis() + 60000); // Just go 60 seconds from now.
+  }
+  else {
+    return ((scv.obsi*60000) - (millis() % (scv.obsi*60000))); // The mod operation gives us seconds passed
+  }
+}
+
+/*
+ * ======================================================================================================================
+ * SystemReset() - reboot the feather
+ * ======================================================================================================================
+ */
+void SystemReset() {
+  // Resets the device, just like hitting the reset button or powering down and back up.
+  __disable_irq();     // Prevent pending interrupts from interfering.
+  NVIC_SystemReset();  // Trigger system reset [web:4]
+}
+
+/*
+ * ======================================================================================================================
+ * DeviceReset() - Kill power to ourselves and do a cold boot
+ * ======================================================================================================================
+ */
+void DeviceReset() {
+  digitalWrite(REBOOT_PIN, HIGH);
+  delay(5000);
+  // Should not get here if relay / watchdog is connected.
+  digitalWrite(REBOOT_PIN, LOW);
+  delay(2000); 
+
+  // !!! May never get here when a relay board / watchdog is connected.
+
+  // Resets the device, just like hitting the reset button or powering down and back up.
+  SystemReset(); 
+}
+
+/*
+ * ======================================================================================================================
+ * HeartBeat() - 
+ * ======================================================================================================================
+ */
+void HeartBeat() {
+  digitalWrite(HEARTBEAT_PIN, HIGH);
+  delay (250);
+  digitalWrite(HEARTBEAT_PIN, LOW);
+}
+
+/*
+ * ======================================================================================================================
+ * BackGroundWork() - Take Sensor Reading, Check LoRa for Messages, Delay 1 Second for use as timming delay            
+ * ======================================================================================================================
+ */
+void BackGroundWork() {
+  uint64_t OneSecondFromNow = millis() + 1000;
+
+  if (!scv.aqs) {
+    if ((nv_op1_state()==OP1_STATE_DIST_5M)||(nv_op1_state()==OP1_STATE_DIST_10M)) {
+      DS_TakeReading();
+    }
+    
+    if (scv.wind) {
+      Wind_TakeReading();
+    }
+  }
+
+  if (PM25AQI_exists) {
+    pm25aqi_TakeReading();
+  }
+
+  // Check WiFi and reconnect
+  if (WiFi_valid && (WiFi.status() != WL_CONNECTED)) {
+    WiFi_connect();
+  }
+
+  HeartBeat();  // Burns 250ms
+
+  while(OneSecondFromNow > millis()) {
+    if (WiFi_valid || notecard_exists) {
+      delay(50);
+    }
+    else {
+      // LoRaWAN - Process radio callbacks. If EV_TXCOMPLETE arrives, flag clears.
+      os_runloop_once(); // Run as often as we can
+    }
+  }
+
+  if (!scv.aqs) {
+    if (TurnLedOff) {   // Turned on by rain gauge interrupt handler
+      digitalWrite(LED_PIN, LOW);
+      noInterrupts();  
+      TurnLedOff = false;
+      interrupts();
+    }
+  }
+}
+
+/*
+ * ======================================================================================================================
+ * setup()
+ * ======================================================================================================================
+ */
+void setup() {
+  pinMode (LED_PIN, OUTPUT);
+  Output_Initialize();
+  delay(2000); // prevents usb driver crash on startup, do not omit this
+
+  analogReadResolution(12);  //Set all analog pins to 12bit resolution reads to match the SAMD21's ADC channels
+
+  Serial_writeln(COPYRIGHT);
+  strcpy(versioninfo, VERSION_INFO);
+  Output (versioninfo);
+
+  GetDeviceID();
+  sprintf (msgbuf, "DevID:%s", DeviceID);
+  Output (msgbuf);
+
+  Output (F("REBOOTPN SET"));
+  pinMode (REBOOT_PIN, OUTPUT); // By default all pins are LOW when board is first powered on. Setting OUTPUT keeps pin LOW.
+  
+  Output (F("HEARTBEAT SET"));
+  pinMode (HEARTBEAT_PIN, OUTPUT);
+  HeartBeat();
+
+  // Initialize SD card if we have one.
+  Output(F("SD:INIT"));
+  SD_initialize();
+  if (!SD_exists) {
+    Output(F("!!!HALTED!!!"));
+    while (true) {
+      delay(1000);
+    }
+  }
+  
+  nv_readConfig();
+
+  INFO_Initialize();
+
+  // Set Daily Reboot Timer
+  DailyRebootCountDownTimer = scv.daily_reboot * 3600; 
+
+  // Refresh Time - If rtc time is valid, lets refresh 5 minutes after boot then every 4 hours
+  nextTimeRefresh = millis() + 300 * 1000;   // (3600 * 4) * 1000; // 4 hours in the future
+  
+  rtc_initialize();
+
+  gps_initialize();  // if found gps_aquire() will run;
+
+  if (RTC_valid) {
+    // We now do a valid clock before we can initialize the EEPROM and make an observation
+    EEPROM_initialize();
+  }
+
+  // Check SD Card for file to determine if we are a Air Quality Station
+  OPT_AQS_Initialize(); // Sets scv.aqs to true
+
+  if (!scv.aqs) {
+    // Optipolar Hall Effect Sensor SS451A - Rain1 Gauge
+    if (scv.rg1) {
+      pinMode(RAINGAUGE1_IRQ_PIN, INPUT);
+      raingauge1_interrupt_count = 0;
+      raingauge1_interrupt_stime = millis();
+      raingauge1_interrupt_ltime = 0;  // used to debounce the tip
+      attachInterrupt(RAINGAUGE1_IRQ_PIN, raingauge1_interrupt_handler, FALLING);
+      Output (F("RG1:ENABLED"));
+    }
+    else {
+      Output (F("RG1:NOT ENABLED"));
+    }
+
+    // Optipolar Hall Effect Sensor SS451A - Rain2 Gauge
+    if (nv_op1_state() == OP1_STATE_RAIN) {
+      pinMode(RAINGAUGE2_IRQ_PIN, INPUT);
+      raingauge2_interrupt_count = 0;
+      raingauge2_interrupt_stime = millis();
+      raingauge2_interrupt_ltime = 0;  // used to debounce the tip
+      attachInterrupt(RAINGAUGE2_IRQ_PIN, raingauge2_interrupt_handler, FALLING);
+      Output (F("RG2:ENABLED"));
+    }
+    else {
+      Output (F("RG2:NOT ENABLED"));
+    }
+
+    if (scv.wind) {
+      Output (F("WIND:ENABLED"));
+      as5600_initialize();
+      // Optipolar Hall Effect Sensor SS451A - Wind Speed
+      pinMode(ANEMOMETER_IRQ_PIN, INPUT);
+      anemometer_interrupt_count = 0;
+      anemometer_interrupt_stime = millis();
+      attachInterrupt(ANEMOMETER_IRQ_PIN, anemometer_interrupt_handler, FALLING);
+    }
+    else {
+      Output (F("WIND:DISABLED"));
+    }
+  }
+
+  // Scan for i2c Devices and Sensors
+  mux_initialize();
+  if (!MUX_exists) {
+    tsm_initialize(); // Check main bus
+  }
+
+  // Scan Dallas 1-Wire Mux for temperature sensors
+  dsmux_initialize();
+
+  bmp_initialize(); // Bosch I2C Sensors
+  sht_initialize(); // Sensirion I2C Sensors
+  mcp_initialize(); // MicroChip mcp9808 Sensors
+  htu_initialize(); // HTU21DF Sensor
+  pm25aqi_initialize(); // PM25AQI I2C Sensor
+  tlw_initialize(); // Tinovi Leaf Mositure Sensor
+
+  // Derived Observations
+  wbt_initialize();
+  hi_initialize();
+  wbgt_initialize();
+  mslp_initialize();
+
+  boardcfg_initialize();
+
+  Time_of_next_obs = millis() + 60000; // Give Network some time to connect
+
+  if (RTC_valid) {
+    Wind_Distance_Air_Initialize(); // Will call HeartBeat() - Full station call.
+  }
+  Output ("Main Loop()");
+  nextTimeRefresh=0;
+}
+
+/*
+ * ======================================================================================================================
+ * loop() - 
+ * ======================================================================================================================
+ */
+void loop() {
+  static int  countdown = 1800; // How log do we stay in calibration display mode
+  // Output (F("LOOP"));
+
+  if (!RTC_valid) {
+    // Must get time from user
+    static bool first = true;
+    
+    delay (1000);
+      
+    if (first) {
+      // Enable Serial if not already
+      if (digitalRead(SCE_PIN) != LOW) {
+        Serial.begin(9600);
+        delay(2000);
+        SerialConsoleEnabled = true;
+      }  
+
+      // Show invalid time and prompt for UTC Time
+      sprintf (msgbuf, "%d:%02d:%02d:%02d:%02d:%02d", 
+        now.year(), now.month(), now.day(),
+        now.hour(), now.minute(), now.second());
+      Output(msgbuf);
+      Output(F("SET RTC w/GMT, ENTER:"));
+      Output("YYYY:MM:DD:HH:MM:SS");
+      first = false;
+    }
+
+    // Now two things can happen. User enters valid time or we get time from GPS
+
+    rtc_readserial(); // check for serial input, validate for rtc, set rtc, report result
+
+    if (!RTC_valid) {
+      rtc_refresh(); // Get time from WiFi / GPS / NoteCard
+    }
+
+    if (RTC_valid) {
+      Output(F("!!! Rebooting !!!"));
+      delay(2000);
+      SystemReset(); // We don't use the watchdog to reboot. So soft reset to keep GPS and RTC powered.
+    }
+  }
+
+  // Normal Operation
+  else {
+    // Delayed initialization. We need a valid clock before we can validate the EEPROM
+    if (eeprom_exists && !eeprom_valid) {
+      EEPROM_Validate();
+      EEPROM_Dump();
+      SD_ClearRainTotals(); // Clear if CRT.TXT exists
+    }
+
+    if (!notecard_exists && !WiFi_valid) {
+      // Make sure we are Joined of OTAA
+      if (scv.lw_mode == "OTAA") {
+        if (LW_NeedToJoin()) {
+          // No netid and No join in progress so start a join
+          LMIC_startJoining();  // Triggers join process
+        }
+      }
+    }
+
+    // Send INFO
+    if (millis() >= nextinfo) {      // Upon power on this will be true with nextinfo being zero
+      INFO_Do();   // function will set nextinfo time for next call
+    }
+    
+    // Perform an Observation, Write to SD, Send OBS
+    if (millis() >= Time_of_next_obs || EEPROM_TimeToRollOver()) {
+      Output (F("Do OBS"));
+      
+      now = rtc.now();
+      Time_of_obs = now.unixtime();
+      if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
+        OBS_Do();
+      }
+      else {
+        Output (F("OBS_Do() NotRun-Bad TM"));
+      }
+
+      Time_of_next_obs = time_to_next_obs();   
+      JPO_ClearBits(); // Clear status bits from boot after we log our first observations
+    }
+  }
+
+  // Update the RTC clock
+  if ((gps_exists && gps_on) || (millis() >= nextTimeRefresh)) {
+    if (rtc_refresh()) {
+      // Time should be set and gps should be off, lets get a gps time update in N hours.
+      nextTimeRefresh = millis() + (3600 * RTC_UPDATE_INTERVAL) * 1000;
+    }
+    else {
+      // GPS was left on or Wifi failed, so lets try again in 5 minutes
+      nextTimeRefresh = millis() + (5 * 60) * 1000;
+    }
+
+    // Lets make sure we have 60 seconds of continous samples before the next reporting
+    if ((millis()+60000) < Time_of_next_obs) {
+      Time_of_next_obs = millis()+60000;
+    }
+  }
+
+  if (gps_exists && !gps_on) {
+    // Seem like the GPS sneaks on from time to time, when we have gps_on set to false. So lets make sure it stays off.
+    gps_keepoff(); // This will also call gps_aquire(); Which shuts it down.
+
+    // Lets make sure we have 60 seconds of continous samples before the next reporting
+    if ((millis()+60000) < Time_of_next_obs) {
+      Time_of_next_obs = millis()+60000;
+    }
+  }
+
+  // Reboot Boot Countdown, only if daily_reboot is set
+  if ((scv.daily_reboot>0) && (--DailyRebootCountDownTimer<=0)) {
+    Output (F("Daily Reboot/OBS"));
+    
+    Time_of_obs = rtc_unixtime();
+    OBS_Do();
+    
+    Output(F("Rebooting"));  
+    delay(1000);
+   
+    DeviceReset();
+
+    // We should never get here, but just incase 
+    Output(F("I'm Alive! Why?"));
+    DailyRebootCountDownTimer = scv.daily_reboot * 3600;
+  }
+  
+  BackGroundWork();
+}
