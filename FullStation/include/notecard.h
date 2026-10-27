@@ -112,6 +112,7 @@ leaving margin for platform/transport overhead.
 #define NOTECARD_I2C_ADDRESS       0x17
 
 // Extern variables
+extern Notecard notecard;
 extern bool notecard_exists;
 extern bool notecard_ntn_enabled;       // Non-Terrestrial Network 
 
