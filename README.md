@@ -1,6 +1,7 @@
 # 3D-PAWS-Feather-FullStation
 
 ## Features
+- Supports Adafruit Feather M0 Boards with connectivity via [Blues Notecard](https://blues.com/products/notecard/)
 - Supports LoRaWAN connectivity via [Adafruit Feather M0 LoRaWAN Board](https://www.adafruit.com/product/3178)
 - Supports WiFi connectivity via [Adafruit Feather M0 WiFi Board](ttps://www.adafruit.com/product/3010)
 - Duplicates (as close as possible) the features from the [3D-PAWS Particle Full Station](https://github.com/3d-paws/3D-PAWS-Particle-FullStation) project.
