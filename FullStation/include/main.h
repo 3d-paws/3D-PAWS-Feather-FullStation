@@ -3,6 +3,7 @@
  *  main.h - Main Code Definations
  * ======================================================================================================================
  */
+#include <stdint.h>
 
 /*
  * ======================================================================================================================
@@ -31,7 +32,7 @@ extern char *msgp;                      // Pointer to message text
 extern char Buffer32Bytes[32];          // General storage
 
 extern unsigned long Time_of_obs;       // unix time of observation
-extern unsigned long Time_of_next_obs;  // time of next observation
+extern uint32_t Time_of_next_obs;       // time of next observation
 
 extern unsigned long nextinfo;          // Time of Next INFO transmit 
 

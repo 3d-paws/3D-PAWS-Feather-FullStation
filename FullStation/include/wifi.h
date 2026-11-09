@@ -22,7 +22,7 @@ extern char WiFiAuthType[8];
 
 // Function prototypes
 unsigned long Wifi_GetTime();
-void WiFi_UpdateTime();
+bool WiFi_UpdateTime();
 bool WiFi_Feather();
 bool WiFi_connect();
 int WiFi_Send(char *msg, const char *webserver, int webserver_port, const char *webserver_path, int webserver_method, const char *webserver_xapikey);

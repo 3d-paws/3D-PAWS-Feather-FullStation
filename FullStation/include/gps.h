@@ -29,6 +29,7 @@ extern bool   gps_on;
 
 // Function prototypes
 void gps_displayInfo();
+bool gps_wake();
 bool gps_aquire();
 void gps_keepoff();
 void gps_initialize();

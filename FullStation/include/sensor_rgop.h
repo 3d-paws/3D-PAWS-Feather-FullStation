@@ -53,7 +53,7 @@ extern uint64_t raingauge2_interrupt_stime;
 extern volatile uint64_t raingauge2_interrupt_ltime;
 extern uint64_t raingauge2_interrupt_toi;
 
-extern unsigned int dg_resolution_adjust;
+extern unsigned int dg_resolution_adjust;   // Distance guage
 
 // Function prototype
 void raingauge1_interrupt_handler();

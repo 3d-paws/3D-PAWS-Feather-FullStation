@@ -16,6 +16,7 @@
 ### [GPS Module](docs/GPSModule.md)
 ### [INFO (Station Information) LoRaWAN](docs/INFO_LoRa.md)
 ### [INFO (Station Information) WiFi](docs/INFO_WiFi.md)
+### [DoActions (Sending Device Actions Through Notehub)](docs/NoteHubDoActions.md)
 ### [Pin Mappings](docs/PinMappings.md)
 ### [SD Card Information](docs/SD.md)
 ### [Sensor Information](docs/Sensors.md)

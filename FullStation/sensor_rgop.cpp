@@ -54,18 +54,16 @@ uint64_t raingauge2_interrupt_toi;   // Time of Interrupt
 /*
  * Distance Sensors
  * The 5-meter sensors (MB7360, MB7369, MB7380, and MB7389) use a scale factor of (Vcc/5120) per 1-mm.
- * Particle 12bit resolution (0-4095),  Sensor has a resolution of 0 - 5119mm,  Each unit of the 0-4095 resolution is 1.25mm
- * Feather has 10bit resolution (0-1023), Sensor has a resolution of 0 - 5119mm, Each unit of the 0-1023 resolution is 5mm
+ * 12bit resolution (0-4095),  Sensor has a resolution of 0 - 5119mm,  Each unit of the 0-4095 resolution is 1.25mm
  *
  * The 10-meter sensors (MB7363, MB7366, MB7383, and MB7386) use a scale factor of (Vcc/10240) per 1-mm.
- * Particle 12bit resolution (0-4095), Sensor has a resolution of 0 - 10239mm, Each unit of the 0-4095 resolution is 2.5mm
- * Feather has 10bit resolution (0-1023), Sensor has a resolution of 0 - 10239mm, Each unit of the 0-1023 resolution is 10mm
+ * 12bit resolution (0-4095), Sensor has a resolution of 0 - 10239mm, Each unit of the 0-4095 resolution is 2.5mm
  *
  * The distance sensor will report as type sg  for Snow, Stream, or Surge gauge deployments.
  * A Median value based on 60 samples 250ms apart is obtain. Then subtracted from ds_baseline for the observation.
  */
 unsigned int dg_bucket = 0;
-unsigned int dg_resolution_adjust = 2.5;                 // Default (2.5) is 10m sensor, (5 = 5m sensor)
+unsigned int dg_resolution_adjust = 2.5;                 // Default (2.5) is 10m sensor, (5 = 5m sensor) Distance guage
 unsigned int dg_buckets[DG_BUCKETS];
 
 /*
@@ -292,6 +290,19 @@ void raingauge_obs_do(int &sidx) {
     // Rain Gauge 1 - Each tip is 0.2mm of rain
     if (scv.rg1) {
       rg1 = raingauge1_sample();
+    }
+
+    // Rain Gauge 2 - Each tip is 0.2mm of rain
+    if (nv_op1_state() == OP1_STATE_RAIN) {
+      rg2 = raingauge2_sample();
+    }
+
+    if (RainEnabled()) {
+      EEPROM_UpdateRainTotals(rg1, rg2);
+    }
+    
+    // Rain Gauge 1 - Each tip is 0.2mm of rain
+    if (scv.rg1) {
       strcpy (obs.sensor[sidx].id, "rg1");
       obs.sensor[sidx].type = F_OBS;
       obs.sensor[sidx].f_obs = rg1;
@@ -310,7 +321,6 @@ void raingauge_obs_do(int &sidx) {
 
     // Rain Gauge 2 - Each tip is 0.2mm of rain
     if (nv_op1_state() == OP1_STATE_RAIN) {
-      rg2 = raingauge2_sample();
       strcpy (obs.sensor[sidx].id, "rg2");
       obs.sensor[sidx].type = F_OBS;
       obs.sensor[sidx].f_obs = rg2;

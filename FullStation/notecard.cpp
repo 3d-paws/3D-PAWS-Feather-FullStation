@@ -37,6 +37,31 @@ Notecard notecard;
 
 /*
  *=======================================================================================================================
+ * notecard_restart() - It's a firmware restart, not a power cycle
+ * 
+ * Blues warns against using it routinely in production, since a reboot followed by re-registration can 
+ * consume extra cellular data and event credits
+ *=======================================================================================================================
+ */
+void notecard_restart() {
+  if (!notecard_exists) {
+    return;
+  }
+
+  J *req = notecard.newRequest("card.restart");
+  if (req == NULL) {
+    Output("NC:MEM ERR");
+    return;
+  }
+
+  // sendRequest() always frees req, even on failure
+  if (!notecard.sendRequest(req)) {
+    Output("NC:RESTART ERR");
+  }
+}
+
+/*
+ *=======================================================================================================================
  * notecard_hubsync() - Force the Notecard to synchronize its state outward to Notehub.
  *=======================================================================================================================
  */
@@ -51,7 +76,7 @@ bool notecard_hubsync() {
   }
 
   // Limit this manual sync to outbound Notefiles only.
-  JAddBoolToObject(syncReq, "out", true);
+  // JAddBoolToObject(syncReq, "out", true);
 
   // sendRequestWithRetry() takes ownership of syncReq.
   // Do not JDelete(syncReq) after this call.
@@ -502,6 +527,11 @@ bool notecard_scv_validate() {
 
   Output("NC:SCV VALIDATE");
 
+  if ((scv.nc_debug < 0) || (scv.nc_debug > 1)) {
+    sprintf (msgbuf, "NC:CFG debug not [0 | 1] [%d]. Set to 1", scv.nc_debug);
+    scv.nc_debug = 1;
+    Output(msgbuf);  
+  }
   if (scv.nc_product == "") {
     Output("NC:CFG product not set");
     ok=false;
@@ -543,13 +573,24 @@ bool notecard_scv_validate() {
     ok=false;
   }
   if ((scv.nc_outbound < 0) || (scv.nc_outbound > 43200)) {
-    sprintf (msgbuf, "NC:CFG outbound not [0-43200] [%d]", scv.nc_outbound);
-    Output(msgbuf);   
+    sprintf (msgbuf, "NC:CFG outbound not [0-43200] [%d]. Set to 10", scv.nc_outbound);
+    Output(msgbuf); 
+    scv.nc_outbound=10;  
   }
   if ((scv.nc_inbound < 0) || (scv.nc_inbound > 43200)) {
-    sprintf (msgbuf, "NC:CFG inbound not [0-43200] [%d]", scv.nc_inbound);
+    sprintf (msgbuf, "NC:CFG inbound not [0-43200] [%d]. Set to 60", scv.nc_inbound);
     Output(msgbuf); 
-    ok=false;  
+    scv.nc_inbound=60;
+  }
+  if ((scv.nc_dfu < 0) || (scv.nc_dfu > 1440)) {
+    sprintf (msgbuf, "NC:CFG dfu not [0-1440] [%d]. Set to 10", scv.nc_dfu);
+    scv.nc_dfu=10;
+    Output(msgbuf); 
+  }
+  if ((scv.nc_doa < 0) || (scv.nc_doa > 1440)) {
+    sprintf (msgbuf, "NC:CFG doa not [0-1440] [%d]. Set to 10", scv.nc_doa);
+    scv.nc_doa=10;
+    Output(msgbuf); 
   }
   return(ok);
 }
@@ -601,6 +642,33 @@ const char *notcard_method() {
 
 /*
  *=======================================================================================================================
+ * notecard_update_enable() - Allow firmware downloads from Notehub.
+ *
+ * Call once during initialization if you want to explicitly enable downloads.
+ * This does not initiate synchronization or copy firmware to SD.
+ *=======================================================================================================================
+ */
+bool notecard_update_enable() {
+  J *dfuReq = notecard.newRequest("dfu.status");
+  if (dfuReq == NULL) {
+    Output("NC:New(dfu.status) ERR");
+    return false;
+  }
+
+  JAddStringToObject(dfuReq, "name", "user");
+  JAddBoolToObject(dfuReq, "on", true);
+
+  if (!notecard.sendRequestWithRetry(dfuReq, scv.nc_rr)) {
+    Output("NC:Send(dfu.status) ERR");
+    return false;
+  }
+
+  Output("NC:Send(dfu.status) OK - ON");
+  return true;
+}
+
+/*
+ *=======================================================================================================================
  * notecard_initialize() - Set "notecard_exists" and initialize if found
  *=======================================================================================================================
  */
@@ -620,7 +688,7 @@ void notecard_initialize() {
 
   notecard.begin();  // I2C, default address 0x17
 
-  if (SerialConsoleEnabled) {
+  if (SerialConsoleEnabled && scv.nc_debug) {
     notecard.setDebugOutputStream(Serial);  // Echo Notecard request/response traffic to console
   }
 
@@ -740,7 +808,7 @@ void notecard_initialize() {
     JAddStringToObject(wifiReq, "ssid", scv.nc_wifi_ssid.c_str());
     JAddStringToObject(wifiReq, "password", scv.nc_wifi_pw.c_str());
 
-    if (notecard.sendRequestWithRetry(wifiReq, scv.nc_rr)) {  // Retry for up to 5 seconds
+    if (notecard.sendRequestWithRetry(wifiReq, scv.nc_rr)) {
       Output("NC:Send(card.wifi) OK");
     }
     else {
@@ -764,13 +832,20 @@ void notecard_initialize() {
 
   JAddStringToObject(transportReq, "method", notcard_method());
 
-  if (notecard.sendRequestWithRetry(transportReq, scv.nc_rr)) {  // Retry for up to 5 seconds
+  if (notecard.sendRequestWithRetry(transportReq, scv.nc_rr)) {
     Output("NC:Send(card.transport) OK");
   }
   else {
     notecard_exists = false;
     Output("NC:Send(card.transport) ERR");
     return;
+  }
+
+  // =======================================================================================================================
+  // allow host firmware downloads
+  // =======================================================================================================================
+  if (!notecard_update_enable()) {
+    Output("NC:UPDATE Enable failed");
   }
 
   // =======================================================================================================================
@@ -842,24 +917,38 @@ bool notecard_rtc_sync() {
 
           rtc.adjust(DateTime(epoch));  // DateTime(uint32_t) takes a Unix epoch directly
 
-          RTC_valid = true;
-          SystemStatusBits &= ~SSB_RTC;  // Turn Off Bit
+          // Test RTC after setting.
+          rtc_timestamp();  // Sets the now datetime structures.
 
-          rtc_timestamp();
-          sprintf(msgbuf, "NC:RTC SET %s", timestamp);
-          Output(msgbuf);
+          if ((now.year() >= TM_VALID_YEAR_START) &&
+              (now.year() <= TM_VALID_YEAR_END) &&
+              (now.month() >= 1) &&
+              (now.month() <= 12) &&
+              (now.day() >= 1) &&
+              (now.day() <= 31)) {
 
-          return (true);
+            RTC_valid = true;
+
+            sprintf(msgbuf, "NC:RTC SET %s", timestamp);
+            Output(msgbuf);
+
+            return (true);
+          }
+          else {
+            // We just set the RTC with a time and date. So we need to invalidate the RTC
+            RTC_valid = false;
+            Output("NC:RTC_SYNC BAD RTC ADJ");
+          }
         }
         else {
           // Extracted value failed the date-range check.
-          Output("NC:RTC_SYNC BAD TIME");        
+          Output("NC:RTC_SYNC BAD NC TIME");        
         }
       }
       else {
         // Response contains an error or is missing the time field.
         notecard.deleteResponse(rsp);
-        Output("NC:RTC_SYNC BAD RESPONSE");
+        Output("NC:RTC_SYNC NO TIME RETURNED");
       }
     }
     else {
@@ -919,9 +1008,29 @@ void notecard_qtt_obs(char *obs) {
     JAddBoolToObject(req, "sync", true);
   }
 
-  // sendRequest() always frees req, even on failure.
-  if (!notecard.sendRequest(req)) {
+  // requestAndResponse() always frees req, even on failure - same contract as sendRequest(),
+  // but it hands us the Notecard's JSON reply instead of just a bool.
+  J *rsp = notecard.requestAndResponse(req);
+  if (rsp == NULL) {
     Output("NC:SEND ERR");
+    return;
+  }
+
+  if (notecard.responseError(rsp)) {
+    Output("NC:SEND ERR");
+    JDelete(rsp);
+    return;
+  }
+
+  // note.add replies {"total": N} - the number of Notes now in the Notefile.
+  // Since the note we just queued is the newest, its queue position is N (FIFO, oldest syncs first).
+  int qpos = JGetInt(rsp, "total");
+  JDelete(rsp);
+
+  if (qpos > 0) {
+    char buf[24];
+    snprintf(buf, sizeof(buf), "NC:OBS QPOS %d", qpos);
+    Output(buf);
   }
 }
 
@@ -955,9 +1064,29 @@ void notecard_qtt_info(char *info) {
   // Lets force the transmission of info to nothub, ignoring mode and queuing policies
   JAddBoolToObject(req, "sync", true);
 
-  // sendRequest() always frees req, even on failure.
-  if (!notecard.sendRequest(req)) {
+  // requestAndResponse() always frees req, even on failure - same contract as sendRequest(),
+  // but it hands us the Notecard's JSON reply instead of just a bool.
+  J *rsp = notecard.requestAndResponse(req);
+  if (rsp == NULL) {
     Output("NC:SEND ERR");
+    return;
+  }
+
+  if (notecard.responseError(rsp)) {
+    Output("NC:SEND ERR");
+    JDelete(rsp);
+    return;
+  }
+
+  // note.add replies {"total": N} - the number of Notes now in the Notefile.
+  // Since the note we just queued is the newest, its queue position is N (FIFO, oldest syncs first).
+  int qpos = JGetInt(rsp, "total");
+  JDelete(rsp);
+
+  if (qpos > 0) {
+    char buf[24];
+    snprintf(buf, sizeof(buf), "NC:INFO QPOS %d", qpos);
+    Output(buf);
   }
 }
 

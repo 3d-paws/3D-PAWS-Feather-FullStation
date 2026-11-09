@@ -44,7 +44,6 @@ without side channel communication, even the best of the best receivers often ne
 if they have no recent information cached in the GPS module - they just have to wait for the relevant 
 data to be transmitted by any of the located and tracked satellites.
 
-
 The PA1010D, “Backup mode” is a low-power state entered by sending the GPS sleep command, typically 
 $PMTK225,4∗2F, which puts the module into backup mode. In this mode, the module keeps only minimal 
 state so it can resume faster than from a full cold start, and the datasheet notes the board has a 
@@ -97,6 +96,9 @@ gps.hdop.hdop() returns the Horizontal Dilution of Precision value from the GPS 
 
   Running feather with GPS off =  0.0364 A
   Running feather with GPS on  = ~0.0745 A
+
+The RST pin on the Adafruit Mini GPS PA1010D is an active-low hardware reset input: pulling it to ground puts 
+the GPS chip into reset; releasing it allows the receiver to start running again.
 */
 
 /*
@@ -126,6 +128,20 @@ float  gps_hdop=9999.9;
  * Fuction Definations
  * =======================================================================================================================
  */
+
+/*
+ * ======================================================================================================================
+ * gps_reset() - Toggle GPS reset Pin
+ * =======================================================================================================================
+ */
+void gps_reset() {
+  Output ("GPS:RESET");
+  digitalWrite(GPS_RST_PIN, LOW);   // assert reset
+  delay(20);                        // hold for 20ms
+  digitalWrite(GPS_RST_PIN, HIGH);  // release reset
+  delay(500);
+}
+
 /*
  * ======================================================================================================================
  * gps_wake() - 36 mA at 3.3 V during acquisition; in regular tracking it’s about 28 mA
@@ -133,27 +149,34 @@ float  gps_hdop=9999.9;
  * Caveat: Once the PA1010D is in standby or backup, I2C failes to respond to command and wake pin. Reset needed.
  * 
  * Pulling the RST pin low performs a full hardware reset on the PA1010D, clearing firmware state, 
- * PMTK settings (returns to full power 1Hz mode), and I2C buffer. The module restarts as if cold-booted.
+ * PMTK settings (returns to full power 1Hz mode), and I2C buffer. 
+ * 
+ * Hardware reset is used because it reliably restores I2C communication on this hardware. Retained navigation state and 
+ * configuration behavior depend on the receiver and backup-power conditions.
  * =======================================================================================================================
  */
-void gps_wake()
-{
-  if (gps_on == false) {
-    digitalWrite(GPS_RST_PIN, LOW);   // assert reset
-    delay(20);                        // hold for 20ms
-  
-    digitalWrite(GPS_RST_PIN, HIGH);  // release reset
-    Output ("GPS MODE:WAKE");
-    delay(500);                       // let GPS boot fully
-
-    if (myI2CGPS.begin()) {    
-      Output("GPS:BEGIN OK");
+bool gps_wake() {
+  if (gps_exists) {
+    // We don't care about state of gps_on, just do the reset and make sure it talks to us
+    gps_reset();
+    if (I2C_Device_Exist(GPS_ADDRESS)) {
+      gps_on = true;
+      Output ("GPS:ON");
+      if (myI2CGPS.begin()) {    
+        Output("GPS:WAKE OK");
+        return(true); 
+      }
+      else {
+        // We reset the gps but it did not respond to begin(), so we can not assume it is on
+        Output("GPS:WAKE ERR");
+      }
     }
     else {
-      Output("GPS:BEGIN ERR");
+      gps_on = false;
+      Output ("GPS:OFF");
     }
-    gps_on = true;
   }
+  return(false);
 }
 
 /*
@@ -163,39 +186,36 @@ void gps_wake()
  * Caveat: I have seen the gps heartbeat led stuck on when put to sleep. Okay to ignore.
  * =======================================================================================================================
  */
-void gps_sleep(int mode)
-{
-  if (gps_on) {
-    if (mode == GPS_STANDBY_MODE) {
-      // Put in standby mode - 1.0 mA
-      myI2CGPS.sendMTKpacket("$PMTK161,0*28\r\n");
-      Output ("GPS MODE:STANDBY");
-    }
-    else if (mode == GPS_BACKUP_MODE) {
-      // Put in backup mode - 18 µA
-      myI2CGPS.sendMTKpacket("$PMTK225,4*2F\r\n");
-      Output ("GPS MODE:BACKUP");
-    }
-    else {
-      // Put in periodic mode
-      /*
-       * PA1010D $PMTK225,2,4000,15000,24000,90000*16 Command Parameters
-       * -----------------------------------------------------------
-       * Parameter     | Value (ms) | Meaning
-       * --------------|------------|---------
-       * Type          | 2          | Periodic Standby Mode (stops acquisition during sleep)
-       * Run_time      | 4000       | 4s full navigation/tracking (~28mA)
-       * Sleep_time    | 15000      | 15s standby (~200µA)
-       * 2nd_Run_time  | 24000      | 24s extended nav (if no fix in first cycle)
-       * 2nd_Sleep_time| 90000      | 90s extended sleep
-       */
-      myI2CGPS.sendMTKpacket("$PMTK225,2,4000,15000,24000,90000*16\r\n");
-      Output ("GPS MODE:PERIODIC");
-    }
-    gps_on = false;
-    
-    delay(20);
+void gps_sleep(int mode) {
+  if (mode == GPS_STANDBY_MODE) {
+    // Put in standby mode - 1.0 mA
+    myI2CGPS.sendMTKpacket("$PMTK161,0*28\r\n");
+    Output ("GPS MODE:STANDBY");
   }
+  else if (mode == GPS_BACKUP_MODE) {
+    // Put in backup mode - 18 µA
+    myI2CGPS.sendMTKpacket("$PMTK225,4*2F\r\n");
+    Output ("GPS MODE:BACKUP");
+  }
+  else {
+    // Put in periodic mode
+    /*
+     * PA1010D $PMTK225,2,4000,15000,24000,90000*16 Command Parameters
+     * -----------------------------------------------------------
+     * Parameter     | Value (ms) | Meaning
+     * --------------|------------|---------
+     * Type          | 2          | Periodic Standby Mode (stops acquisition during sleep)
+     * Run_time      | 4000       | 4s full navigation/tracking (~28mA)
+     * Sleep_time    | 15000      | 15s standby (~200µA)
+     * 2nd_Run_time  | 24000      | 24s extended nav (if no fix in first cycle)
+     * 2nd_Sleep_time| 90000      | 90s extended sleep
+     */
+    myI2CGPS.sendMTKpacket("$PMTK225,2,4000,15000,24000,90000*16\r\n");
+    Output ("GPS MODE:PERIODIC");
+  }
+  gps_on = false;
+  Output ("GPS:OFF");
+  delay(20);
 }
 
 /* 
@@ -242,22 +262,17 @@ void gps_displayInfo()
 /* 
  *=======================================================================================================================
  * gps_keepoff() - Have seen the gps on when it should not be, check and shut off if i2c 0x10 responds
- *                 When off it will not respond to the i2c request.
+ *                 When it is truely off it will not respond to the I2C_Device_Exist() call.
  *=======================================================================================================================
  */
 void gps_keepoff() {
   if (gps_exists && !gps_on && I2C_Device_Exist(GPS_ADDRESS)) {
-    Output("GPS ON: Hardware reset");
-    
-    // Toggle reset pin 
-    digitalWrite(GPS_RST_PIN, LOW);  
-    delay(20);  
-    digitalWrite(GPS_RST_PIN, HIGH);
-    delay(500);
-    
-    if (myI2CGPS.begin()) {
-      // Let gps_aquire() handle full acquire + sleep
-      gps_aquire();  // This already validates + sleeps
+    Output("GPS ON: KEEPOFF()");
+    if (gps_wake()) {
+       gps_aquire();  // This will validate the gps and rtc then put the gps to sleep
+    }
+    else {
+      // if we failed to begin / initialize the gps !!! Do we set gps_exists=false
     }
   }
 }
@@ -267,97 +282,162 @@ void gps_keepoff() {
  * gps_aquire() - return true if aquired
  * 
  * If we do not aquire gps time, we leave the gps powered on.
- * If se stop calling gps.encode(myI2CGPS.read()); then gps data becomes stale.
+ * If we stop calling gps.encode(myI2CGPS.read()); then gps data becomes stale.
  *=======================================================================================================================
  */
 bool gps_aquire() {
-  if (gps_exists) {
-    Output ("GPS_AQUIRE");
-    gps_wake(); // it might already be on, we are going to toggle the reset pin anyway.
+  // Do not trust GPS data from a previous acquisition.
+  gps_valid = false;
 
-    uint64_t wait;
-    uint64_t period;
-    uint16_t default_year = gps.date.year();   // This will be 2000 if it has not updated
-      
-    // Do not trust gps data it will most likey be stale.
-    gps_valid=false;
-    wait = millis() + 30000;
-    period = millis() + 1000;
-    while (wait > millis()) {    
-      if (SerialConsoleEnabled && (millis() > period)) {
-        Serial.print(".");  // Provide Serial Console some feedback as we loop
-        period = millis() + 1000;
-      }     
-      if (myI2CGPS.available()) { //available() returns the number of new bytes available from the GPS module
-        gps.encode(myI2CGPS.read()); //Feed the GPS parser
-
-        // Confirm truly current, sane GPS data beyond TinyGPS++'s basic isValid() flags,
-        // which can stay "true" from stale prior fixes (e.g., after signal loss).
-        if (gps.location.isValid() && gps.time.isValid() && gps.altitude.isValid() && gps.date.isValid() &&
-           (gps.time.age() < 2000 && gps.location.age() < 2000) &&
-           (gps.date.year() >= TM_VALID_YEAR_START) && (gps.date.year() <= TM_VALID_YEAR_END) && 
-           (gps.date.month() >= 1) && (gps.date.month() <= 12) &&
-           (gps.date.day() >= 1) && (gps.date.day() <= 31) &&
-           (gps.time.hour() >= 0) && (gps.time.hour() <= 23) &&
-           (gps.time.minute() >= 0) && (gps.time.minute() <= 59) &&
-           (gps.time.second() >= 0) && (gps.time.second() <= 59) &&
-           (gps.satellites.value() >= 4) && (gps.hdop.hdop() < 2.5)) {  // Horizontal Dilution of Precision
-          gps_valid = true;
-          break;
-        }
-      }
-    }
-       
-    if (gps_valid) {
-      //  Update RTC_Clock as soon as possible after GPS aquire
-      rtc.adjust(DateTime(
-        gps.date.year(),
-        gps.date.month(),
-        gps.date.day(),
-        gps.time.hour(),
-        gps.time.minute(),
-        gps.time.second()
-      ));
-      if (SerialConsoleEnabled) Serial.println();  // Send a newline out to cleanup after all the periods we have been logging 
-      Output ("GPS:AQUIRED");
-      Output("GPS->RTC Set");
-
-      // Test RTC after setting
-      rtc_timestamp(); // sets the now datetime structures
-      Output (timestamp);
-
-      if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END) && 
-          (now.month() >= 1) && (now.month() <=12) &&
-          (now.day() >= 1) && (now.day() <=31)) {
-
-        // put gps to sleep and soon as we have validated the rtc
-        gps_sleep(GPS_STANDBY_MODE);
-
-        RTC_valid = true;
-        Output("RTC:VALID");
-
-        // Save off the GPS information
-        gps_lat  = gps.location.lat();
-        gps_lon  = gps.location.lng();
-        gps_altm = gps.altitude.meters();
-        gps_altf = gps.altitude.feet();
-        gps_sat  = gps.satellites.value();
-        gps_hdop = gps.hdop.hdop();
-
-        gps_displayInfo();
-        return (true);
-      }
-      else {
-        RTC_valid = false;
-        Output ("RTC:NOT VALID");
-      }
-    }
-    else {
-      if (SerialConsoleEnabled) Serial.println();  // Send a newline out to cleanup after all the periods we have been logging 
-      Output("GPS:NOT AQUIRED");
-    }    
+  if (!gps_exists) {
+    return false;
   }
-  return (false);
+  Output ("GPS_AQUIRE");
+
+  // Assume the GPS is on and gps_wake() was called before this function.
+
+  const unsigned long timeoutMs = 30000UL;
+  const unsigned long feedbackMs = 1000UL;
+  const unsigned long freshnessMs = 2000UL;
+
+  // Clear date/time update flags from a previous acquisition.
+  // Reading value() clears the update flag without erasing the value.
+  (void)gps.date.value();
+  (void)gps.time.value();
+
+  const unsigned long acquisitionStart = millis();
+  unsigned long lastFeedback = acquisitionStart;
+
+  while (millis() - acquisitionStart < timeoutMs) {
+    const unsigned long currentMillis = millis();
+
+    if (SerialConsoleEnabled &&
+        (currentMillis - lastFeedback >= feedbackMs)) {
+      Serial.print(".");
+      lastFeedback = currentMillis;
+    }
+
+    if (!myI2CGPS.available()) {
+      continue;
+    }
+
+    // Evaluate only after a complete, checksum-valid sentence.
+    if (!gps.encode(myI2CGPS.read())) {
+      continue;
+    }
+
+    // Capture these flags before reading date/time values.
+    const bool dateUpdated = gps.date.isUpdated();
+    const bool timeUpdated = gps.time.isUpdated();
+
+    // Clear the flags after each completed sentence so updates
+    // cannot accumulate across separate sentences.
+    (void)gps.date.value();
+    (void)gps.time.value();
+
+    // Require a sentence that updated both date and time.
+    if (!dateUpdated || !timeUpdated) {
+      continue;
+    }
+
+    // All fields used to qualify the fix must be valid.
+    if (!gps.date.isValid() ||
+        !gps.time.isValid() ||
+        !gps.location.isValid() ||
+        !gps.altitude.isValid() ||
+        !gps.satellites.isValid() ||
+        !gps.hdop.isValid()) {
+      continue;
+    }
+
+    // All fields used to qualify the fix must be recent.
+    if (gps.date.age() >= freshnessMs ||
+        gps.time.age() >= freshnessMs ||
+        gps.location.age() >= freshnessMs ||
+        gps.altitude.age() >= freshnessMs ||
+        gps.satellites.age() >= freshnessMs ||
+        gps.hdop.age() >= freshnessMs) {
+      continue;
+    }
+
+    // Date/time sanity checks and position-quality requirements.
+    if ((gps.date.year() >= TM_VALID_YEAR_START) &&
+        (gps.date.year() <= TM_VALID_YEAR_END) &&
+        (gps.date.month() >= 1) &&
+        (gps.date.month() <= 12) &&
+        (gps.date.day() >= 1) &&
+        (gps.date.day() <= 31) &&
+        (gps.time.hour() <= 23) &&
+        (gps.time.minute() <= 59) &&
+        (gps.time.second() <= 59) &&
+        (gps.satellites.value() >= 4) &&
+        (gps.hdop.hdop() < 2.5)) {
+
+      gps_valid = true;
+      break;
+    }
+  }
+
+  // Clean up after the progress dots.
+  if (SerialConsoleEnabled) {
+    Serial.println();
+  }
+
+  if (!gps_valid) {
+    Output("GPS:NOT AQUIRED");
+
+    // Preserve existing behavior: leave the GPS running on failure.
+    return false;
+  }
+
+  // Update RTC_Clock as soon as possible after GPS acquisition.
+  rtc.adjust(DateTime(
+    gps.date.year(),
+    gps.date.month(),
+    gps.date.day(),
+    gps.time.hour(),
+    gps.time.minute(),
+    gps.time.second()
+  ));
+
+  Output("GPS:AQUIRED");
+  Output("GPS->RTC Set");
+
+  // Test RTC after setting.
+  now = rtc.now();
+
+  if ((now.year() >= TM_VALID_YEAR_START) &&
+      (now.year() <= TM_VALID_YEAR_END) &&
+      (now.month() >= 1) &&
+      (now.month() <= 12) &&
+      (now.day() >= 1) &&
+      (now.day() <= 31)) {
+
+    // Put GPS to sleep after validating the RTC.
+    gps_sleep(GPS_STANDBY_MODE);
+
+    RTC_valid = true;
+    Output("RTC:VALID");
+
+    // Save the GPS information.
+    gps_lat  = gps.location.lat();
+    gps_lon  = gps.location.lng();
+    gps_altm = gps.altitude.meters();
+    gps_altf = gps.altitude.feet();
+    gps_sat  = gps.satellites.value();
+    gps_hdop = gps.hdop.hdop();
+
+    gps_displayInfo();
+    return true;
+  }
+  else {
+    RTC_valid = false;  // After Setting the RTC with GPS time, our tests show we now made it invalid.
+  }
+
+  Output("RTC:CHECK FAILED");
+
+  // Preserve existing behavior: leave the GPS running on RTC failure.
+  return false;
 }
 
 /* 
@@ -366,24 +446,27 @@ bool gps_aquire() {
  *=======================================================================================================================
  */
 void gps_initialize() {
-
+  Output("GPS:INIT");
   pinMode(GPS_RST_PIN, OUTPUT);
-  digitalWrite(GPS_RST_PIN, HIGH);  // idle state
-  gps_wake(); // THis will do a gps reset
+  digitalWrite(GPS_RST_PIN, HIGH);  // running state for the gps
+  delay (1000);
+  gps_reset();
 
-  // if (!gps_exists) {
   if (I2C_Device_Exist(GPS_ADDRESS)) {
-    if (myI2CGPS.begin()) {    
-      Output("GPS:FOUND");
-      gps_exists=true;
-      // We still need gps_valid to be set by gps_aquire()
+    if (myI2CGPS.begin()) {
+      gps_exists = true;
+      Output("GPS:OK");
+      gps_on = true;
+      Output("GPS:ON");
+      
       gps_aquire();
     }
     else {
-      Output("GPS:ERR");
+      // We reset the gps but it did not respond to begin(), so we can not assume it is on
+      Output("GPS:INIT ERR");
     }
   }
   else {
-    Output("GPS:NF");
+    Output ("GPS:NF");
   }
 }

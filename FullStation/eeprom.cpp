@@ -107,6 +107,9 @@ void EEPROM_ClearRainTotals(uint32_t current_time) {
 /* 
  *=======================================================================================================================
  * EEPROM_TimeToRollOver() - 
+ * 
+ * Note: When we see it is time in the main loop() to rollover, we call Do_OBS(). Which calls raingauge_obs_do().
+ *       That then calls EEPROM_UpdateRainTotals(rg1, rg2) which will rotate the for a new day
  *=======================================================================================================================
  */
 bool EEPROM_TimeToRollOver() {
@@ -135,6 +138,10 @@ bool EEPROM_TimeToRollOver() {
  *=======================================================================================================================
  */
 void EEPROM_Validate() {
+  if (!eeprom_exists) {
+    return;
+  }
+  
   uint32_t current_time = rtc_unixtime();
 
   eeprom_i2c.read(eeprom_address, eeprom_ptr, sizeof(eeprom));
@@ -300,6 +307,10 @@ void EEPROM_Update() {
  *=======================================================================================================================
  */
 void EEPROM_Dump() {
+  if (!eeprom_exists) {
+    return;
+  }
+
   eeprom_i2c.read(eeprom_address, eeprom_ptr, sizeof(eeprom));
 
   unsigned long checksum = EEPROM_ChecksumCompute();
@@ -342,8 +353,6 @@ void EEPROM_initialize() {
   if (eeprom_i2c.begin(EEPROM_I2C_ADDR)) {
     Output("EEPROM OK");
     eeprom_exists = true;
-    EEPROM_Validate();
-    EEPROM_Dump();
   } else {
     Output("EEPROM NF");
   }

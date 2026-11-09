@@ -28,6 +28,7 @@ char SD_obsdir[] = "/OBS";                  // Observations stored in this direc
 bool SD_exists = false;                     // Set to true if SD card found at boot
 char SD_n2s_file[] = "N2SOBS.TXT";          // Need To Send Observation file
 uint32_t SD_n2s_max_filesz = 512 * 60 * 48; // Keep a little over 1 day. When it fills, it is deleted and we start over.
+char SD_cnv_file[] = "CNV.TXT";             // File used to clear NV Configuration files. File is deleted after.
 char SD_crt_file[] = "CRT.TXT";             // if file exists clear rain totals and delete file
 char SD_INFO_FILE[] = "INFO.TXT";           // Store INFO information in this file. Every INFO call will overwrite content
 
@@ -583,4 +584,18 @@ void SD_N2S_Publish() {
     Output ("N2S->!SD");
   }
   Output ("N2S Done");
+}
+
+/* 
+ *=======================================================================================================================
+ * SD_CheckN2SandSetSSB() - Check Need 2 Send file and set SystemStatusBits if found
+ *=======================================================================================================================
+ */
+void SD_CheckN2SandSetSSB() {
+  if (SD_exists) {
+    if (SD.exists(SD_n2s_file)) {
+      SystemStatusBits |= SSB_N2S; // Turn on Bit to Report if we have Need to Send Observations
+      Output("N2S:Exists");
+    }
+  }
 }

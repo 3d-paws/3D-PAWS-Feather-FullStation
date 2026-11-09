@@ -18,6 +18,7 @@ extern bool SD_exists;
 extern char SD_n2s_file[];
 extern uint32_t SD_n2s_max_filesz;
 extern char SD_crt_file[];
+extern char SD_cnv_file[];
 extern char SD_INFO_FILE[];
 
 // Function prototypes
@@ -29,3 +30,4 @@ void SD_NeedToSend_Status(char *status);
 void SD_ClearRainTotals();
 void SD_UpdateInfoFile(char *info);
 void SD_N2S_Publish();
+void SD_CheckN2SandSetSSB();

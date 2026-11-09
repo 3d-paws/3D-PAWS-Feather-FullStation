@@ -28,7 +28,7 @@
     String  otaa_joineui;               // JoinEUI was formally called AppEUI
                                         // Convert lw_joineui and lw_deveui to little endian format
                                         //  Examples 0123456798BACDEF -> EFCDAB8967452301
-                                        //           000000000000001 -> 0100000000000000
+                                        //           000000000000001  -> 0100000000000000
 
     String  otaa_deveui;                // This key is in little endian format
     String  otaa_appkey;                // This key is in big endian format
@@ -66,28 +66,19 @@
     // ==============================
     // Feather M0 Board with NoteCard
     // ==============================
+    int     nc_debug=0;       // Echo Notecard request/response traffic to Feather serial console. 0 disables & 1 enables
     String  nc_product;       // Notecard's association to a Product (edu.ucar.wnicewonger:test_3dpaws)
     String  nc_mode;          // Notecard's cloud connection mode (continuous,periodic)
                               //   pm        Periodic Mode
                               //   cm        Continuous Mode 
                               //   mm        Minimum Mode - we are responsible for calling hub.sync, aka synchronize with Notehub now
 
-                              // Notecard’s Minimum Mode does not maintain an always-on cellular connection. 
-                              // It connects when explicitly told to synchronize, rather than staying connected or 
-                              // connecting on a periodic schedule.
-
                               // If Periodic Mode set and "nc_outbound" is set to "0". You are causing notecard to disconnect
                               // and reconnect to the cell/wifi network on each observation. 
 
-#ifdef NOWAY
-if (!NOTECARD_CONTINUOUS_MODE) {
-    // In periodic mode, ask the Notecard to connect and sync right now rather than waiting
-    // for the next NOTECARD_OUTBOUND_MINUTES check-in.
-    JAddBoolToObject(req, "sync", true);
-}
-#endif
-
-
+                              // Notecard’s Minimum Mode does not maintain an always-on cellular connection. 
+                              // It connects when explicitly told to synchronize, rather than staying connected or 
+                              // connecting on a periodic schedule.
 
     int     nc_outbound=10;   // Schedule Notecard's sending of queued .qo Notes and send on the scheduled interval
                               //   0 disables scheduled outbound synchronization, we are responsible for calling hub.sync
@@ -97,6 +88,12 @@ if (!NOTECARD_CONTINUOUS_MODE) {
                               //     environment-variable changes, configuration changes, or pending DFU/host-firmware-update work. 
                               //     Inbound content can still arrive when the device happens to establish an outbound sync.
                               //   1 to 43,200 minutes aka from 1 minute to 30 days
+    int     nc_dfu=10;        // Schedule device to check notecard for a Device Firmware Update
+                              //   0 Disables scheduled polling, even check at boot
+                              //   1 to 1440 minutes aka from 1 minute to 24 hours
+    int     nc_doa=10;        // Schedule device to check notecard for a Do Action commands in the doaction.qi
+                              //   0 Disables scheduled polling, even check at boot
+                              //   1 to 1440 minutes aka from 1 minute to 24 hours
     String  nc_method="c";    // Card Tansport Method
                               //  c     cell
                               //  w     wifi
@@ -108,19 +105,24 @@ if (!NOTECARD_CONTINUOUS_MODE) {
 
                                   // We have 2 outbound queues because each will have their own template.
                                   // At NoteHub, these queues will be associated with routes. A route (aka webhook) forwards the data to the ingest service.
+                                  // The suffix is required when you specify a queue’s Notefile name. It tells Blues which direction the queue carries messages
     String  nc_qo_obs ="obs.qo";  // Queue out file name for observations.   - Not in config file
     String  nc_qo_info="info.qo"; // Queue out file name for info messages.  - Not in config file 
+    String  nc_qi_doa="doaction.qi";  // Queue in file name for DoAction messages.  - Not in config file
+
+                                  // When sending templates a short numeric identifier is ued in the Notefile.
+                                  // The Notecard can transmit that number instead of the full Notefile name, saving bandwidth
     int     nc_qo_port_obs  = 10; // Port used for templated - Not in config file  
     int     nc_qo_port_info = 11; // Port used for templated - Not in config file   
 
     int     nc_rr=1;          // Host to notecard via i2c retry count. - Not in config file
 
     String  nc_esim_apn;      // External Sim APN (your.carrier.apn)
-    String  nc_esim_method;   // External Sim order methods
-                              //  p      primary            Use the internal embedded Blues SIM only (default)
-                              //  s      secondary          Use the external SIM only, provided an external SIM is physically detected.
-                              //  dps    dual-primary-secondary    Try internal SIM first; after cellular registration failures, switch to external SIM.
-                              //  dsp    dual-secondary-primary    Try external SIM first; after cellular registration failures, switch to internal Blues SIM.
+    String  nc_esim_method="p"; // External Sim order methods
+                                //  p      primary            Use the internal embedded Blues SIM only (default)
+                                //  s      secondary          Use the external SIM only, provided an external SIM is physically detected.
+                                //  dps    dual-primary-secondary    Try internal SIM first; after cellular registration failures, switch to external SIM.
+                                //  dsp    dual-secondary-primary    Try external SIM first; after cellular registration failures, switch to internal Blues SIM.
 
     String  nc_wifi_ssid;     // StationWiFi
     String  nc_wifi_pw;       // secret
@@ -139,7 +141,7 @@ if (!NOTECARD_CONTINUOUS_MODE) {
     // System Configuration
     // ====================
     int     daily_reboot = DEFAULT_DAILY_REBOOT;          // Daily Reboot Hours, Reboot Every N hours
-    int     obsi      = DEFAULT_OBS_INTERVAL;             // observation interval, time between observations 1-60 minutes - was obs_period=0
+    int     obsi      = DEFAULT_OBS_INTERVAL;             // observation interval, time between observations 1-60 minutes
     int     rtro_hour = 0;                                // Rain Total Rollover Hour 0-23
     int     rtro_minute=0;                                // Rain Total Rollover Minute 0,15,30,45
     int     elevation = -999;                             // Station Elevation in m. 
@@ -152,14 +154,14 @@ extern SCV scv;
 extern bool nv_config_enabled;
 
 // Function prototypes
-bool nv_loadConfig();
-bool nv_saveConfig();
 bool sd_loadConfig();
 bool sd_saveConfig();
+bool ep_loadConfig();
+bool ep_saveConfig();
+bool ep_deleteConfigFiles();
 bool saveConfig();
 void nv_printCfg();
-bool nv_deleteConfigFiles();
 bool nv_deleteConfigIfCnvFileExists();
 int nv_op1_state();
 int nv_op2_state();
-void nv_readConfig();
+void nv_scv_init();

@@ -68,35 +68,53 @@ void rtc_timestamp() {
  */
 bool rtc_refresh() {
   if (notecard_exists) {
-    notecard_rtc_sync(); // This will set RTC_valid to true when time obtained
-
-    // We still don't have time so try GPS if we have one.
-    if (!RTC_valid) {
+    if (notecard_rtc_sync()) { // This will set RTC_valid to true when time obtained
+      // All is good with geting time from notecade. But we have a GPS module and it is on. We really want it off.
+      // So lets get the time from it. Ignoring if it fails. Force RTC_valid to true. Since we have notecard.
+      if (gps_exists && gps_on) {
+        if (gps_wake()) {
+          gps_aquire();
+        }
+      }
+      return(true);
+    }
+    else if (gps_wake()) { // gps_wake tests for gps_exists and does a reset to make sure we can talk to
+       // We did not get time from notecard. Try GPS
       return(gps_aquire());
     }
     else {
-      return (true);
+      return(false);
     }
   }
   else if (LW_valid) {
     // We are a LoRaWAN Device
+
+    // We have no network clock source so look at gps device
     return(gps_aquire());  // This will set RTC_valid to true when valid GPS time obtained
   }
-  else {
-    // We are a WiFi Device
-    if (WiFi_valid) {
-      WiFi_UpdateTime();
-
-      // We still don't have time so try GPS if we have one.
-      if (!RTC_valid) {
-        return(gps_aquire());
+  else if (WiFi_valid) {  // This will set RTC_valid to true when time obtained
+    if (WiFi_UpdateTime()) {
+      if (gps_exists && gps_on) {
+        if (gps_wake()) {
+          gps_aquire();
+        }
       }
-      else {
-        return (true);
-      }
+      return(true);
+    }
+    else if (gps_wake()) { // gps_wake tests for gps_exists and does a reset to make sure we can talk to
+       // We did not get time from notecard. Try GPS
+      return(gps_aquire());
     }
     else {
+      return(false);
+    }
+  }
+  else {
+    if (gps_exists && gps_wake()) {
       return(gps_aquire());
+    }
+    else {
+      return(false);
     }
   }
 }

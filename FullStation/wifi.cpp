@@ -116,7 +116,7 @@ unsigned long Wifi_GetTime() {
  * WiFi_UpdateTime() - Function to get network time and set rtc
  * ======================================================================================================================
  */
-void WiFi_UpdateTime() {
+bool WiFi_UpdateTime() {
 
   WiFiStatus = WiFi.status();
 
@@ -130,15 +130,23 @@ void WiFi_UpdateTime() {
 
       // Lets check the RTC after setting
       now = rtc.now();
-      if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
-       
+
+      if ((now.year() >= TM_VALID_YEAR_START) &&
+          (now.year() <= TM_VALID_YEAR_END) &&
+          (now.month() >= 1) &&
+          (now.month() <= 12) &&
+          (now.day() >= 1) &&
+          (now.day() <= 31)) {
+
         rtc_timestamp();
         sprintf (msgbuf, "%sW", timestamp);
         Output (msgbuf);
         RTC_valid = true;
         Output("RTC:VALID");
+        return (true);
       }
       else {
+        // After Setting the RTC with NTP time, our test shows we now made it invalid.
         RTC_valid = false;
         Output ("RTC:NOT VALID");
       }
@@ -147,6 +155,7 @@ void WiFi_UpdateTime() {
       Output("WiFi NTP BAD");
     }
   }
+  return (false);
 }
 
 /*

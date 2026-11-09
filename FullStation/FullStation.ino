@@ -1,5 +1,5 @@
 #define COPYRIGHT "Copyright [2026] [University Corporation for Atmospheric Research]"
-#define VERSION_INFO "FFS-261126"  // Feather Full Station - Release Date
+#define VERSION_INFO "FFS-261109"  // Feather Full Station - Release Date
 
 /*
  *======================================================================================================================
@@ -7,6 +7,9 @@
  *   Board Type : Adafruit Feather M0 LoRaWAN Board https://www.adafruit.com/product/3178
  *   Board Type : Adafruit Feather M0 WiFi Board    https://www.adafruit.com/product/3010
  *   Board Type : Adafruit Feather M0 Adalogger     https://www.adafruit.com/product/2796
+ *   Addon Board: Adalogger FeatherWing - RTC + SD  https://www.adafruit.com/product/2922
+ *   Addon Breakout: Adafruit 24LC32 I2C EEPROM     https://www.adafruit.com/product/5146
+ *   Addon Breakout: Adafruit Mini GPS PA1010D      https://www.adafruit.com/product/4415
  *
  *   Author: Robert Bubon
  *   Version History
@@ -143,6 +146,14 @@
  *                    Bug fix, removed the /100.0f from the bmp58x.
  *                    Brokedown info in to 4 files 
  *                    Added Sensors ltr390 and bh1750
+ * 
+ *     2026-10-29 RJB NoteCard Remote Update added
+ *                    Updated the SDUBoot code to support Adalogger FeatherWing (SD pin 10) or Adafruit Feather M0 Adalogger (SD pin 4)
+ *                    Reworking the Time aquire and GPS code
+ * 
+ *     2026-11-05 RJB NoteCard Do Action support added
+ *                    Bug Fix in nv_readConfig() ... if (n <= 0) break; Seperates this out
+ *                  
  *                                  
  *  Compile for EU Frequencies 
  *    cd Arduino/libraries/MCCI_LoRaWAN_LMIC_library/project_config
@@ -268,6 +279,8 @@
 
 #include "include/wifi.h"           // Wifi Functions
 #include "include/lorawan.h"        // LoRaWAN Functions
+#include "include/notecard_dfu.h"   // Notecard Device Firmware Update Functions
+#include "include/notecard_doa.h"   // Notecard Device DO Action Functions
 #include "include/notecard.h"       // Notecard Functions
 
 #include "include/sensor_rgop.h"    // Rain and OptionPin Functions
@@ -299,7 +312,7 @@ char *msgp;                              // Pointer to message text
 char Buffer32Bytes[32];                  // General storage
 
 unsigned long Time_of_obs = 0;           // unix time of observation
-unsigned long Time_of_next_obs = 0;      // time of next observation
+uint32_t Time_of_next_obs = 0;           // time of next observation
 
 // Local
 int DailyRebootCountDownTimer;
@@ -311,42 +324,8 @@ unsigned long nextinfo=0;                // Time of Next INFO transmit
  * time_to_next_obs() - This will return milliseconds to next observation
  *=======================================================================================================================
  */
-unsigned long time_to_next_obs() {
-  if (scv.obsi == 1) {
-    return (millis() + 60000); // Just go 60 seconds from now.
-  }
-  else {
-    return ((scv.obsi*60000) - (millis() % (scv.obsi*60000))); // The mod operation gives us seconds passed
-  }
-}
-
-/*
- * ======================================================================================================================
- * SystemReset() - reboot the feather
- * ======================================================================================================================
- */
-void SystemReset() {
-  // Resets the device, just like hitting the reset button or powering down and back up.
-  __disable_irq();     // Prevent pending interrupts from interfering.
-  NVIC_SystemReset();  // Trigger system reset [web:4]
-}
-
-/*
- * ======================================================================================================================
- * DeviceReset() - Kill power to ourselves and do a cold boot
- * ======================================================================================================================
- */
-void DeviceReset() {
-  digitalWrite(REBOOT_PIN, HIGH);
-  delay(5000);
-  // Should not get here if relay / watchdog is connected.
-  digitalWrite(REBOOT_PIN, LOW);
-  delay(2000); 
-
-  // !!! May never get here when a relay board / watchdog is connected.
-
-  // Resets the device, just like hitting the reset button or powering down and back up.
-  SystemReset(); 
+uint32_t time_to_next_obs() {
+  return (uint32_t)millis() + ((uint32_t)scv.obsi * 60000UL);
 }
 
 /*
@@ -440,15 +419,14 @@ void setup() {
   Output(F("SD:INIT"));
   SD_initialize();
   if (!SD_exists) {
-    Output(F("!!!HALTED!!!"));
-    while (true) {
-      delay(1000);
-    }
+    Output(F("SD:NF"));
   }
   
-  nv_readConfig();
+  EEPROM_initialize();
 
-  INFO_Initialize();
+  nv_scv_init(); // Requires EEPROM to be initialized prior
+
+  INFO_Initialize(); // Test if ifo server was set in the config which is needed for WiFi
 
   // Set Daily Reboot Timer
   DailyRebootCountDownTimer = scv.daily_reboot * 3600; 
@@ -462,7 +440,8 @@ void setup() {
 
   if (RTC_valid) {
     // We now do a valid clock before we can initialize the EEPROM and make an observation
-    EEPROM_initialize();
+    EEPROM_Validate();
+    EEPROM_Dump();
   }
 
   // Check SD Card for file to determine if we are a Air Quality Station
@@ -531,7 +510,8 @@ void setup() {
   wbgt_initialize();
   mslp_initialize();
 
-  boardcfg_initialize();
+  boardcfg_initialize(); // Will set notecard_exists
+  notecard_dfu_check(); // if notecard_exists then check for and do feather firmware update if ready
 
   Time_of_next_obs = millis() + 60000; // Give Network some time to connect
 
@@ -588,7 +568,7 @@ void loop() {
       delay(2000);
       SystemReset(); // We don't use the watchdog to reboot. So soft reset to keep GPS and RTC powered.
     }
-  }
+  } // !RTC_Valid
 
   // Normal Operation
   else {
@@ -610,21 +590,26 @@ void loop() {
     }
 
     // Send INFO
-    if (millis() >= nextinfo) {      // Upon power on this will be true with nextinfo being zero
+    if ((int32_t)(millis() - nextinfo) >= 0) {     // Upon power on this will be true with nextinfo being zero
       INFO_Do();   // function will set nextinfo time for next call
     }
     
     // Perform an Observation, Write to SD, Send OBS
-    if (millis() >= Time_of_next_obs || EEPROM_TimeToRollOver()) {
-      Output (F("Do OBS"));
-      
+    if (((int32_t)(millis() - Time_of_next_obs) >= 0) || EEPROM_TimeToRollOver()) {
+      // Output ("Do OBS");
+      sprintf(msgbuf, "Do OBS:%lu:%lu | %d",
+            (unsigned long)millis(),
+            (unsigned long)Time_of_next_obs,
+            (int)EEPROM_TimeToRollOver());
+      Output (msgbuf);
+       
       now = rtc.now();
       Time_of_obs = now.unixtime();
       if ((now.year() >= TM_VALID_YEAR_START) && (now.year() <= TM_VALID_YEAR_END)) {
         OBS_Do();
       }
       else {
-        Output (F("OBS_Do() NotRun-Bad TM"));
+        Output ("OBS_Do() NotRun-Bad TM");
       }
 
       Time_of_next_obs = time_to_next_obs();   
@@ -633,31 +618,37 @@ void loop() {
   }
 
   // Update the RTC clock
-  if ((gps_exists && gps_on) || (millis() >= nextTimeRefresh)) {
+  if ((int32_t)(millis() - nextTimeRefresh) >= 0) {
     if (rtc_refresh()) {
       // Time should be set and gps should be off, lets get a gps time update in N hours.
       nextTimeRefresh = millis() + (3600 * RTC_UPDATE_INTERVAL) * 1000;
     }
     else {
-      // GPS was left on or Wifi failed, so lets try again in 5 minutes
+      // Lets try again in 5 minutes
       nextTimeRefresh = millis() + (5 * 60) * 1000;
     }
 
-    // Lets make sure we have 60 seconds of continous samples before the next reporting
-    if ((millis()+60000) < Time_of_next_obs) {
+    // If below determines it's time for a obs, we delay to we have 60 seconds of continous samples before reporting
+    if ((int32_t)(millis() - Time_of_next_obs) >= 0) {
       Time_of_next_obs = millis()+60000;
     }
   }
 
+  // The will prove the gps is truely off. If not it will do so. !!! This issue might be addrees with 20261101 changes
   if (gps_exists && !gps_on) {
     // Seem like the GPS sneaks on from time to time, when we have gps_on set to false. So lets make sure it stays off.
-    gps_keepoff(); // This will also call gps_aquire(); Which shuts it down.
+    gps_keepoff(); // This will also call gps_aquire() which burns time and will eventually shutoff the gps
 
-    // Lets make sure we have 60 seconds of continous samples before the next reporting
-    if ((millis()+60000) < Time_of_next_obs) {
+    // Time spent messing with the gps above, messes with 1s sampling. Below make sure we have 60 seconds of 
+    // continous samples before the next reporting
+    if ((int32_t)(millis() - Time_of_next_obs) >= 0) {
       Time_of_next_obs = millis()+60000;
     }
   }
+
+  // Check if it time to check with notecard for a DFU, if so ask notcard, and if dfu ready then do it.
+  notecard_dfu_check();
+  notecard_doa_check();
 
   // Reboot Boot Countdown, only if daily_reboot is set
   if ((scv.daily_reboot>0) && (--DailyRebootCountDownTimer<=0)) {

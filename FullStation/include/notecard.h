@@ -9,6 +9,15 @@ Notehub Webside https://notehub.io
 
 To enable trace on the notecard usb port send {"req":"card.trace","mode":"on"}
 
+Onboard LEDs
+Most Notecards have two small LEDs on the top of the module, each driven by a different source.
+The red LED is controlled by Notecard firmware. It blinks at boot, lights while the Notecard is processing a request or 
+writing to flash, and stays on continuously while the Notecard is in SoftAP mode. Its behavior can be adjusted with the 
+mode argument to card.io. On Notecards with a cellular modem, the green LED is driven by the modem's network status output. 
+It reflects the modem's own state, so it is dark while the modem is powered down, and its blink pattern is defined 
+by the modem manufacturer.
+
+
 A compact template is a predefined binary record layout for Notes stored in one Notefile. You tell the Notecard exactly which fields, 
 data types, and optional metadata each record will contain, and it then stores and transmits future Notes in a small fixed-format 
 binary representation rather than repeatedly sending JSON field names and metadata.
@@ -117,6 +126,7 @@ extern bool notecard_exists;
 extern bool notecard_ntn_enabled;       // Non-Terrestrial Network 
 
 // Function prototypes
+bool notecard_hubsync();
 bool notecard_hubsync_status();
 bool notecard_wireless_status();
 bool notecard_wifi_status();

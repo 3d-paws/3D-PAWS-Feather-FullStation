@@ -31,6 +31,8 @@ extern BOARD_CONFIG board_config;
 extern const char* pinNames[];
 
 // Function prototypes
+void SystemReset();
+void DeviceReset();
 float vbat_get();
 void GetDeviceID();
 void boardcfg_initialize();

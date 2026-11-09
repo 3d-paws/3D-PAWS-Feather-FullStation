@@ -30,6 +30,35 @@ const char* pinNames[] = {
  * =======================================================================================================================
  */
 
+ /*
+ * ======================================================================================================================
+ * SystemReset() - reboot the feather
+ * ======================================================================================================================
+ */
+void SystemReset() {
+  // Resets the device, just like hitting the reset button or powering down and back up.
+  __disable_irq();     // Prevent pending interrupts from interfering.
+  NVIC_SystemReset();  // Trigger system reset [web:4]
+}
+
+/*
+ * ======================================================================================================================
+ * DeviceReset() - Kill power to ourselves and do a cold boot
+ * ======================================================================================================================
+ */
+void DeviceReset() {
+  digitalWrite(REBOOT_PIN, HIGH);
+  delay(5000);
+  // Should not get here if relay / watchdog is connected.
+  digitalWrite(REBOOT_PIN, LOW);
+  delay(2000); 
+
+  // !!! May never get here when a relay board / watchdog is connected.
+
+  // Resets the device, just like hitting the reset button or powering down and back up.
+  SystemReset(); 
+}
+
 /*
  *=======================================================================================================================
  * vbat_get() -- return battery voltage
