@@ -122,6 +122,7 @@ See the WiFi Board Preparation documentation for instructions.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
+| `nc_debug` | Integer | 0 | Echo Notecard request/response traffic to Feather serial console. `0` disables & `1` enables |
 | `nc_product` | String | — | Notehub Product UID associated with the Notecard. Example: `edu.ucar.wnicewonger:test_3dpaws`. |
 | `nc_mode` | String | — | Notecard cloud connection mode. See the mode table below. |
 
@@ -144,8 +145,10 @@ supports both.
 
 | Key | Type | Default | Valid Values | Description |
 | --- | --- | --- | --- | --- |
-| `nc_outbound` | Integer | `10` | `0`–`43200` minutes | Scheduled interval for sending queued outbound `.qo` Notes. |
-| `nc_inbound` | Integer | `60` | `0`–`43200` minutes | Scheduled interval for checking inbound commands and configuration changes. |
+| `nc_outbound` | Integer | `10` | `0`–`43200` minutes | Schedule interval for sending queued outbound `.qo` Notes. |
+| `nc_inbound` | Integer | `60` | `0`–`43200` minutes | Schedule interval for checking inbound commands and configuration changes. |
+| `nc_dfu` | Integer | `10` | `0`–`1440` minutes | Scheduled interval for asking notecard if a Device Firmware Update is ready. |
+| `nc_doa` | Integer | `10` | `0`–`1440` minutes | Schedule interval for asking notecard if a Do Action command exists. |
 
 #### Outbound Synchronization
 
@@ -230,6 +233,7 @@ settings.
 | --- | --- | --- | --- |
 | `nc_qo_obs` | String | `obs.qo` | Outbound observation queue filename. |
 | `nc_qo_info` | String | `info.qo` | Outbound information-message queue filename. |
+| `nc_qi_doa` | String | `doaction.qi` | Inbound DoAction-message queue filename. |
 | `nc_qo_port_obs` | Integer | `10` | Template port for observation messages. |
 | `nc_qo_port_info` | Integer | `11` | Template port for information messages. |
 | `nc_rr` | Integer | `1` | Host-to-Notecard I2C retry count. |
@@ -299,10 +303,13 @@ is_port=80
 is_urlpath=/info/log.php
 is_apikey=Set_your-x_api_key
 ts_fqdn=pool.ntp.org
+nc_debug=0
 nc_product=edu.ucar.username:test_3dpaws
 nc_mode=pm
 nc_outbound=10
 nc_inbound=60
+nc_dfu=10
+nc_doa=10
 nc_method=c
 nc_rr=1
 nc_esim_apn=
